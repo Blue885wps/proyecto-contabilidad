@@ -1,0 +1,452 @@
+[
+  {
+    "codigo": "1000",
+    "nombre": "Caja",
+    "tipo": "Activo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "1100",
+    "nombre": "Bancos",
+    "tipo": "Activo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "1110",
+    "nombre": "Inversiones temporales",
+    "tipo": "Activo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "1200",
+    "nombre": "Cuentas por cobrar",
+    "tipo": "Activo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "1210",
+    "nombre": "Clientes",
+    "tipo": "Activo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "1220",
+    "nombre": "Documentos por cobrar",
+    "tipo": "Activo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "1230",
+    "nombre": "Deudores diversos",
+    "tipo": "Activo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "1300",
+    "nombre": "Inventarios",
+    "tipo": "Activo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "1310",
+    "nombre": "Materias primas",
+    "tipo": "Activo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "1320",
+    "nombre": "Productos terminados",
+    "tipo": "Activo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "1400",
+    "nombre": "Activos fijos",
+    "tipo": "Activo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "1410",
+    "nombre": "Mobiliario y equipo",
+    "tipo": "Activo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "1420",
+    "nombre": "Equipo de transporte",
+    "tipo": "Activo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "1430",
+    "nombre": "Equipo de computo",
+    "tipo": "Activo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "1500",
+    "nombre": "Activos diferidos",
+    "tipo": "Activo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "1510",
+    "nombre": "Gastos pagados por anticipado",
+    "tipo": "Activo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "1520",
+    "nombre": "Seguros pagados por anticipado",
+    "tipo": "Activo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "1600",
+    "nombre": "Cuentas por cobrar a largo plazo",
+    "tipo": "Activo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "1700",
+    "nombre": "Propiedad, planta y equipo",
+    "tipo": "Activo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "1790",
+    "nombre": "Depreciacion acumulada",
+    "tipo": "Activo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "1800",
+    "nombre": "Activos intangibles",
+    "tipo": "Activo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "1890",
+    "nombre": "Amortizacion acumulada",
+    "tipo": "Activo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "2000",
+    "nombre": "Cuentas por pagar",
+    "tipo": "Pasivo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "2010",
+    "nombre": "Proveedores",
+    "tipo": "Pasivo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "2020",
+    "nombre": "Acreedores diversos",
+    "tipo": "Pasivo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "2100",
+    "nombre": "Prestamos bancarios",
+    "tipo": "Pasivo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "2110",
+    "nombre": "Prestamos a corto plazo",
+    "tipo": "Pasivo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "2120",
+    "nombre": "Prestamos a largo plazo",
+    "tipo": "Pasivo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "2200",
+    "nombre": "Impuestos por pagar",
+    "tipo": "Pasivo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "2210",
+    "nombre": "IVA por pagar",
+    "tipo": "Pasivo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "2220",
+    "nombre": "ISR por pagar",
+    "tipo": "Pasivo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "2300",
+    "nombre": "Pasivos diferidos",
+    "tipo": "Pasivo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "2310",
+    "nombre": "Anticipos de clientes",
+    "tipo": "Pasivo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "2320",
+    "nombre": "Intereses cobrados por anticipado",
+    "tipo": "Pasivo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "2400",
+    "nombre": "Pasivos por impuestos diferidos",
+    "tipo": "Pasivo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "2500",
+    "nombre": "Obligaciones financieras a largo plazo",
+    "tipo": "Pasivo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "2600",
+    "nombre": "Pasivos por beneficios a empleados",
+    "tipo": "Pasivo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "3000",
+    "nombre": "Capital social",
+    "tipo": "Patrimonio",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "3010",
+    "nombre": "Capital aportado",
+    "tipo": "Patrimonio",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "3020",
+    "nombre": "Capital ganado",
+    "tipo": "Patrimonio",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "3100",
+    "nombre": "Utilidades retenidas",
+    "tipo": "Patrimonio",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "3110",
+    "nombre": "Utilidad del ejercicio",
+    "tipo": "Patrimonio",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "3120",
+    "nombre": "Perdida del ejercicio",
+    "tipo": "Patrimonio",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "3200",
+    "nombre": "Resultados del ejercicio",
+    "tipo": "Patrimonio",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "3300",
+    "nombre": "Reservas legales",
+    "tipo": "Patrimonio",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "3400",
+    "nombre": "Ajustes por revaluacion",
+    "tipo": "Patrimonio",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "3500",
+    "nombre": "Dividendos decretados",
+    "tipo": "Patrimonio",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "4000",
+    "nombre": "Ingresos",
+    "tipo": "Ingreso",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "4010",
+    "nombre": "Ventas",
+    "tipo": "Ingreso",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "4020",
+    "nombre": "Ingresos por servicios",
+    "tipo": "Ingreso",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "4030",
+    "nombre": "Ingresos por intereses",
+    "tipo": "Ingreso",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "4040",
+    "nombre": "Otros ingresos",
+    "tipo": "Ingreso",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "4050",
+    "nombre": "Ingresos por alquileres",
+    "tipo": "Ingreso",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "4060",
+    "nombre": "Ingresos por comisiones",
+    "tipo": "Ingreso",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "4070",
+    "nombre": "Ingresos por dividendos",
+    "tipo": "Ingreso",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "5000",
+    "nombre": "Costos",
+    "tipo": "Costo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "5010",
+    "nombre": "Costo de ventas",
+    "tipo": "Costo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "5020",
+    "nombre": "Costo de produccion",
+    "tipo": "Costo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "5030",
+    "nombre": "Costo de lo vendido",
+    "tipo": "Costo",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "6000",
+    "nombre": "Gastos",
+    "tipo": "Gasto",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "6010",
+    "nombre": "Gastos de venta",
+    "tipo": "Gasto",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "6020",
+    "nombre": "Gastos de administracion",
+    "tipo": "Gasto",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "6030",
+    "nombre": "Gastos financieros",
+    "tipo": "Gasto",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "6040",
+    "nombre": "Gastos de operacion",
+    "tipo": "Gasto",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "6050",
+    "nombre": "Sueldos y salarios",
+    "tipo": "Gasto",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "6060",
+    "nombre": "Renta",
+    "tipo": "Gasto",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "6070",
+    "nombre": "Servicios publicos",
+    "tipo": "Gasto",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "6080",
+    "nombre": "Depreciacion",
+    "tipo": "Gasto",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "6090",
+    "nombre": "Amortizacion",
+    "tipo": "Gasto",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "6100",
+    "nombre": "Gastos de publicidad y mercadeo",
+    "tipo": "Gasto",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "6110",
+    "nombre": "Gastos de mantenimiento",
+    "tipo": "Gasto",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "6120",
+    "nombre": "Gastos de seguros",
+    "tipo": "Gasto",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "6130",
+    "nombre": "Gastos de impuestos",
+    "tipo": "Gasto",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "6140",
+    "nombre": "Gastos de capacitacion",
+    "tipo": "Gasto",
+    "saldo": 0.0
+  },
+  {
+    "codigo": "6150",
+    "nombre": "Gastos de viajes y representacion",
+    "tipo": "Gasto",
+    "saldo": 0.0
+  }
+]

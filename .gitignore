@@ -1,0 +1,24 @@
+# Archivos compilados
+bin/
+*.class
+
+# Datos generados por el programa (ignorar contenido pero mantener estructura)
+data/*
+!data/.gitkeep
+
+# Archivos de configuracion del editor
+.vscode/
+.idea/
+*.swp
+*.iml
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Archivos de log
+*.log
+
+# Documentacion interna
+AGENTS.md
