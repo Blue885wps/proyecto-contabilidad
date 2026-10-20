@@ -1,0 +1,75 @@
+1000|Caja|Activo|0.0
+1100|Bancos|Activo|0.0
+1110|Inversiones temporales|Activo|0.0
+1200|Cuentas por cobrar|Activo|0.0
+1210|Clientes|Activo|0.0
+1220|Documentos por cobrar|Activo|0.0
+1230|Deudores diversos|Activo|0.0
+1300|Inventarios|Activo|0.0
+1310|Materias primas|Activo|0.0
+1320|Productos terminados|Activo|0.0
+1400|Activos fijos|Activo|0.0
+1410|Mobiliario y equipo|Activo|0.0
+1420|Equipo de transporte|Activo|0.0
+1430|Equipo de computo|Activo|0.0
+1500|Activos diferidos|Activo|0.0
+1510|Gastos pagados por anticipado|Activo|0.0
+1520|Seguros pagados por anticipado|Activo|0.0
+1600|Cuentas por cobrar a largo plazo|Activo|0.0
+1700|Propiedad, planta y equipo|Activo|0.0
+1790|Depreciacion acumulada|Activo|0.0
+1800|Activos intangibles|Activo|0.0
+1890|Amortizacion acumulada|Activo|0.0
+2000|Cuentas por pagar|Pasivo|0.0
+2010|Proveedores|Pasivo|0.0
+2020|Acreedores diversos|Pasivo|0.0
+2100|Prestamos bancarios|Pasivo|0.0
+2110|Prestamos a corto plazo|Pasivo|0.0
+2120|Prestamos a largo plazo|Pasivo|0.0
+2200|Impuestos por pagar|Pasivo|0.0
+2210|IVA por pagar|Pasivo|0.0
+2220|ISR por pagar|Pasivo|0.0
+2300|Pasivos diferidos|Pasivo|0.0
+2310|Anticipos de clientes|Pasivo|0.0
+2320|Intereses cobrados por anticipado|Pasivo|0.0
+2400|Pasivos por impuestos diferidos|Pasivo|0.0
+2500|Obligaciones financieras a largo plazo|Pasivo|0.0
+2600|Pasivos por beneficios a empleados|Pasivo|0.0
+3000|Capital social|Patrimonio|0.0
+3010|Capital aportado|Patrimonio|0.0
+3020|Capital ganado|Patrimonio|0.0
+3100|Utilidades retenidas|Patrimonio|0.0
+3110|Utilidad del ejercicio|Patrimonio|0.0
+3120|Perdida del ejercicio|Patrimonio|0.0
+3200|Resultados del ejercicio|Patrimonio|0.0
+3300|Reservas legales|Patrimonio|0.0
+3400|Ajustes por revaluacion|Patrimonio|0.0
+3500|Dividendos decretados|Patrimonio|0.0
+4000|Ingresos|Ingreso|0.0
+4010|Ventas|Ingreso|0.0
+4020|Ingresos por servicios|Ingreso|0.0
+4030|Ingresos por intereses|Ingreso|0.0
+4040|Otros ingresos|Ingreso|0.0
+4050|Ingresos por alquileres|Ingreso|0.0
+4060|Ingresos por comisiones|Ingreso|0.0
+4070|Ingresos por dividendos|Ingreso|0.0
+5000|Costos|Costo|0.0
+5010|Costo de ventas|Costo|0.0
+5020|Costo de produccion|Costo|0.0
+5030|Costo de lo vendido|Costo|0.0
+6000|Gastos|Gasto|0.0
+6010|Gastos de venta|Gasto|0.0
+6020|Gastos de administracion|Gasto|0.0
+6030|Gastos financieros|Gasto|0.0
+6040|Gastos de operacion|Gasto|0.0
+6050|Sueldos y salarios|Gasto|0.0
+6060|Renta|Gasto|0.0
+6070|Servicios publicos|Gasto|0.0
+6080|Depreciacion|Gasto|0.0
+6090|Amortizacion|Gasto|0.0
+6100|Gastos de publicidad y mercadeo|Gasto|0.0
+6110|Gastos de mantenimiento|Gasto|0.0
+6120|Gastos de seguros|Gasto|0.0
+6130|Gastos de impuestos|Gasto|0.0
+6140|Gastos de capacitacion|Gasto|0.0
+6150|Gastos de viajes y representacion|Gasto|0.0

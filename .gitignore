@@ -6,6 +6,12 @@ bin/
 data/*
 !data/.gitkeep
 
+# Respaldos generados en tiempo de ejecucion
+backup/
+
+# Temporales de escritura atomica
+*.tmp
+
 # Archivos de configuracion del editor
 .vscode/
 .idea/
