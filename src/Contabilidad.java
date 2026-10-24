@@ -31,12 +31,8 @@ public class Contabilidad {
     static long ultimaModCuentas = 0;
     static long ultimaModAsientos = 0;
 
-    // Periodo configurable para los reportes (vacio = sin limite)
-    static String periodoDesde = "";
-    static String periodoHasta = "";
-
     public static void main(String[] args) {
-        System.out.println("=== SISTEMA DE CONTABILIDAD ===");
+        System.out.println("=== SISTEMA CONTABLE EMPRESARIAL ===");
         cargarDatos();
 
         while (true) {
@@ -45,53 +41,114 @@ public class Contabilidad {
             int opcion = leerInt("Seleccione una opcion: ");
 
             switch (opcion) {
-                case 1: mostrarCuentas(); break;
-                case 2: crearCuenta(); break;
-                case 3: registrarAsiento(); break;
-                case 4: mostrarAsientos(); break;
-                case 5: generarBalance(); break;
-                case 6: buscarCuenta(); break;
+                case 1: menuAdministrarCuentas(); break;
+                case 2: registrarAsiento(); break;
+                case 3: menuConsultarCuentasT(); break;
+                case 4: verLibroDiario(); break;
+                case 5: verLibroMayor(); break;
+                case 6: verBalanceComprobacion(); break;
                 case 7: verEstadoResultados(); break;
-                case 8: verEstadoFlujoEfectivo(); break;
-                case 9: verEstadoCambiosPatrimonio(); break;
-                case 10: verBalanceComprobacion(); break;
-                case 11: verLibroDiario(); break;
-                case 12: verLibroMayor(); break;
-                case 13: revertirAsiento(); break;
-                case 14: reiniciarDatos(); break;
-                case 15: buscarAsientos(); break;
-                case 16: recalcularSaldosManual(); break;
-                case 17: recargarDatosDesdeArchivos(); break;
-                case 18: configurarPeriodoReportes(); break;
-                case 19: restaurarRespaldo(); break;
-                case 0: salir(); return;
+                case 8: generarBalance(); break;
+                case 9: menuConsultarMovimientos(); break;
+                case 10: menuRespaldarInformacion(); break;
+                case 0:
+                case 11: salir(); return;
                 default: System.out.println("Opcion invalida.");
             }
         }
     }
 
     static void mostrarMenu() {
-        System.out.println("\n--- MENU PRINCIPAL ---");
-        System.out.println("1. Ver catalogo de cuentas");
-        System.out.println("2. Crear nueva cuenta");
-        System.out.println("3. Registrar asiento contable");
-        System.out.println("4. Ver asientos registrados");
-        System.out.println("5. Generar balance general");
-        System.out.println("6. Buscar cuenta");
-        System.out.println("7. Ver estado de resultados");
-        System.out.println("8. Ver estado de flujo de efectivo");
-        System.out.println("9. Ver estado de cambios en el patrimonio");
-        System.out.println("10. Ver balance de comprobacion");
-        System.out.println("11. Ver libro diario");
-        System.out.println("12. Ver libro mayor");
-        System.out.println("13. Revertir asiento");
-        System.out.println("14. Reiniciar datos de prueba (borra asientos y saldos)");
-        System.out.println("15. Buscar asientos");
-        System.out.println("16. Recalcular saldos desde asientos");
-        System.out.println("17. Recargar datos desde archivos");
-        System.out.println("18. Configurar periodo de reportes");
-        System.out.println("19. Restaurar respaldo");
-        System.out.println("0. Salir");
+        System.out.println("\n===========================================");
+        System.out.println("       SISTEMA CONTABLE EMPRESARIAL");
+        System.out.println("===========================================");
+        System.out.println("1. Administrar cuentas");
+        System.out.println("2. Registrar operacion contable");
+        System.out.println("3. Consultar cuentas T");
+        System.out.println("4. Generar libro diario");
+        System.out.println("5. Generar libro mayor");
+        System.out.println("6. Generar balanza de comprobacion");
+        System.out.println("7. Generar estado de resultados");
+        System.out.println("8. Generar balance general");
+        System.out.println("9. Consultar movimientos");
+        System.out.println("10. Respaldar informacion");
+        System.out.println("11. Salir");
+    }
+
+    static void menuAdministrarCuentas() {
+        while (true) {
+            System.out.println("\n--- ADMINISTRAR CUENTAS ---");
+            System.out.println("1. Ver catalogo");
+            System.out.println("2. Crear cuenta");
+            System.out.println("3. Buscar cuenta");
+            System.out.println("4. Reiniciar datos de prueba");
+            System.out.println("0. Volver");
+            int opcion = leerInt("Seleccione una opcion: ");
+
+            switch (opcion) {
+                case 1: mostrarCuentas(); break;
+                case 2: crearCuenta(); break;
+                case 3: buscarCuenta(); break;
+                case 4: reiniciarDatos(); break;
+                case 0: return;
+                default: System.out.println("Opcion invalida.");
+            }
+        }
+    }
+
+    static void menuConsultarCuentasT() {
+        while (true) {
+            System.out.println("\n--- CONSULTAR CUENTAS T ---");
+            System.out.println("1. Una cuenta");
+            System.out.println("2. Cuentas con movimientos");
+            System.out.println("3. Catalogo completo");
+            System.out.println("0. Volver");
+            int opcion = leerInt("Seleccione una opcion: ");
+
+            switch (opcion) {
+                case 1: verCuentaTIndividual(); break;
+                case 2: verCuentasTConMovimientos(); break;
+                case 3: verTodasCuentasT(); break;
+                case 0: return;
+                default: System.out.println("Opcion invalida.");
+            }
+        }
+    }
+
+    static void menuConsultarMovimientos() {
+        while (true) {
+            System.out.println("\n--- CONSULTAR MOVIMIENTOS ---");
+            System.out.println("1. Ver asientos registrados");
+            System.out.println("2. Buscar asientos");
+            System.out.println("3. Revertir asiento");
+            System.out.println("0. Volver");
+            int opcion = leerInt("Seleccione una opcion: ");
+
+            switch (opcion) {
+                case 1: mostrarAsientos(); break;
+                case 2: buscarAsientos(); break;
+                case 3: revertirAsiento(); break;
+                case 0: return;
+                default: System.out.println("Opcion invalida.");
+            }
+        }
+    }
+
+    static void menuRespaldarInformacion() {
+        while (true) {
+            System.out.println("\n--- RESPALDAR INFORMACION ---");
+            System.out.println("1. Crear respaldo manual");
+            System.out.println("2. Restaurar respaldo");
+            System.out.println("0. Volver");
+            int opcion = leerInt("Seleccione una opcion: ");
+
+            switch (opcion) {
+                case 1: respaldarInformacion(); break;
+                case 2: restaurarRespaldo(); break;
+                case 0: return;
+                default: System.out.println("Opcion invalida.");
+            }
+        }
     }
 
     static void cargarDatos() {
@@ -106,7 +163,7 @@ public class Contabilidad {
             inicializarCuentas();
         } else if (cuentaCodigos.size() < 75) {
             System.out.println("NOTA: Hay " + (75 - cuentaCodigos.size()) + " cuentas nuevas disponibles.");
-            System.out.println("Use la opcion 14 para reiniciar los datos y restaurar el catalogo.");
+            System.out.println("Use Administrar cuentas > Reiniciar datos de prueba para restaurar el catalogo.");
         }
 
         respaldarDiario();
@@ -282,8 +339,8 @@ public class Contabilidad {
         }
 
         if (cambios) {
-            System.out.println("Los cambios externos no estan en memoria. Use la opcion 17 para recargar");
-            System.out.println("o continue: el proximo guardado sobrescribira esas ediciones.");
+            System.out.println("Los cambios externos no estan en memoria.");
+            System.out.println("El proximo guardado sobrescribira esas ediciones.");
             actualizarMarcasArchivos();
         }
     }
@@ -825,7 +882,7 @@ public class Contabilidad {
                 asientoTotales.set(i, totalesAntes.get(i));
             }
             System.out.println("ADVERTENCIA: Se detectaron diferencias, pero no se aplico el ajuste");
-            System.out.println("porque no se pudo crear el respaldo. Use la opcion 16 para reintentar.");
+            System.out.println("porque no se pudo crear el respaldo. Se reintentara en el proximo inicio.");
             return;
         }
 
@@ -846,76 +903,6 @@ public class Contabilidad {
         System.out.println("Respaldo: " + respaldo);
     }
 
-    static void recalcularSaldosManual() {
-        System.out.println("\n--- RECALCULAR SALDOS ---");
-        List<Double> saldosAntes = new ArrayList<>(cuentaSaldos);
-        List<String> fechasAntes = new ArrayList<>(asientoFechas);
-        List<Double> totalesAntes = new ArrayList<>(asientoTotales);
-
-        int totalesCorregidos = revisarAsientos();
-        boolean cambiosSaldos = recalcularSaldos();
-        boolean cambiosFechas = normalizarFechasAsientos();
-
-        if (!cambiosSaldos && !cambiosFechas && totalesCorregidos == 0) {
-            System.out.println("Los saldos, las fechas y los totales ya estan correctos.");
-            return;
-        }
-
-        String respaldo = respaldarDatos("recalculo");
-        if (respaldo == null) {
-            for (int i = 0; i < cuentaSaldos.size(); i++) {
-                cuentaSaldos.set(i, saldosAntes.get(i));
-            }
-            for (int i = 0; i < asientoFechas.size(); i++) {
-                asientoFechas.set(i, fechasAntes.get(i));
-            }
-            for (int i = 0; i < asientoTotales.size(); i++) {
-                asientoTotales.set(i, totalesAntes.get(i));
-            }
-            System.out.println("Recalculo cancelado: no se pudo crear el respaldo.");
-            return;
-        }
-
-        guardarAsientos();
-        guardarCuentas();
-
-        int cuentasCambiadas = contarSaldosDiferentes(saldosAntes, cuentaSaldos);
-        System.out.println("Recalculo aplicado y guardado.");
-        if (cambiosSaldos) {
-            System.out.println("- Cuentas con saldo corregido: " + cuentasCambiadas);
-        }
-        if (cambiosFechas) {
-            System.out.println("- Fechas de asientos normalizadas a dd/MM/yyyy.");
-        }
-        if (totalesCorregidos > 0) {
-            System.out.println("- Totales de asientos corregidos: " + totalesCorregidos);
-        }
-        System.out.println("Respaldo: " + respaldo);
-    }
-
-    static void recargarDatosDesdeArchivos() {
-        System.out.println("\n--- RECARGAR DATOS DESDE ARCHIVOS ---");
-        System.out.println("Se descartara el estado en memoria y se volvera a leer de disco.");
-        String confirmacion = leerString("Confirme la recarga (S/N): ");
-
-        if (!confirmacion.equalsIgnoreCase("S") && !confirmacion.equalsIgnoreCase("SI")) {
-            System.out.println("Recarga cancelada. No se modifico ningun dato.");
-            return;
-        }
-
-        cargarCuentasTexto(ARCHIVO_CUENTAS);
-        cargarAsientosTexto(ARCHIVO_ASIENTOS);
-
-        if (cuentaCodigos.isEmpty()) {
-            System.out.println("El catalogo estaba vacio. Inicializando 75 cuentas estandar...");
-            inicializarCuentas();
-        }
-
-        aplicarAjustesAutomaticos();
-        actualizarMarcasArchivos();
-        System.out.println("Datos recargados desde los archivos.");
-    }
-
     static void restaurarRespaldo() {
         System.out.println("\n--- RESTAURAR RESPALDO ---");
         File dir = new File("backup");
@@ -931,7 +918,7 @@ public class Contabilidad {
             String nombre = entrada.getName();
             if (nombre.startsWith("diario_") || nombre.startsWith("ajuste_")
                     || nombre.startsWith("recalculo_") || nombre.startsWith("reinicio_")
-                    || nombre.startsWith("previo_restauracion_")) {
+                    || nombre.startsWith("manual_") || nombre.startsWith("previo_restauracion_")) {
                 respaldos.add(entrada);
             }
         }
@@ -1141,10 +1128,6 @@ public class Contabilidad {
         return true;
     }
 
-    static boolean fechaEnPeriodo(String fecha) {
-        return fechaEnRango(fecha, periodoDesde, periodoHasta);
-    }
-
     static List<Double> saldosEnCero() {
         List<Double> saldos = new ArrayList<>();
         for (int i = 0; i < cuentaCodigos.size(); i++) {
@@ -1204,75 +1187,12 @@ public class Contabilidad {
         return totalPorTipo(saldos, "Ingreso") - totalPorTipo(saldos, "Costo") - totalPorTipo(saldos, "Gasto");
     }
 
-    static double saldoCuentaAntes(String codigo, String fechaLimite) {
-        if (fechaLimite == null || fechaLimite.isEmpty()) return 0;
-
-        int idxCuenta = indiceCuenta(codigo);
-        if (idxCuenta < 0) return 0;
-
-        String limite = fechaOrdenable(fechaLimite);
-        double saldo = 0;
-        String tipoCuenta = cuentaTipos.get(idxCuenta);
-
-        for (int i = 0; i < asientoFechas.size(); i++) {
-            if (fechaOrdenable(asientoFechas.get(i)).compareTo(limite) >= 0) continue;
-
-            List<String> cods = partidaCodigos.get(i);
-            List<String> tips = partidaTipos.get(i);
-            List<Double> mons = partidaMontos.get(i);
-            int cantidad = Math.min(cods.size(), Math.min(tips.size(), mons.size()));
-
-            for (int j = 0; j < cantidad; j++) {
-                if (!cods.get(j).equals(codigo)) continue;
-                double monto = mons.get(j);
-                if (tipoCuenta.equals("Activo") || tipoCuenta.equals("Costo") || tipoCuenta.equals("Gasto")) {
-                    saldo += tips.get(j).equalsIgnoreCase("Debito") ? monto : -monto;
-                } else {
-                    saldo += tips.get(j).equalsIgnoreCase("Credito") ? monto : -monto;
-                }
-            }
-        }
-        return saldo;
-    }
-
-    static String descripcionPeriodo(boolean soloCorte) {
-        String desde = soloCorte ? "" : periodoDesde;
-        String hasta = periodoHasta;
-
-        if (desde.isEmpty() && hasta.isEmpty()) return "Todo el historico";
-        if (desde.isEmpty()) return "Hasta " + hasta;
-        if (hasta.isEmpty()) return "Desde " + desde;
-        return "Del " + desde + " al " + hasta;
-    }
-
-    static void configurarPeriodoReportes() {
-        System.out.println("\n--- PERIODO DE REPORTES ---");
-        System.out.println("Periodo actual: " + descripcionPeriodo(false));
-        System.out.println("Deje vacio para no limitar.");
-        System.out.println("El balance general usa solo la fecha de corte (hasta).");
-
-        String desde = leerFechaOpcional("Desde");
-        String hasta = leerFechaOpcional("Hasta");
-
-        if (!desde.isEmpty() && !hasta.isEmpty()
-                && fechaOrdenable(desde).compareTo(fechaOrdenable(hasta)) > 0) {
-            System.out.println("ERROR: La fecha desde no puede ser posterior a la fecha hasta.");
-            System.out.println("El periodo no se modifico.");
-            return;
-        }
-
-        periodoDesde = desde;
-        periodoHasta = hasta;
-        System.out.println("Periodo actualizado: " + descripcionPeriodo(false));
-        System.out.println("Los reportes 5, 7, 8, 9, 10, 11 y 12 usaran este periodo.");
-    }
-
     static void generarBalance() {
         verificarSaldosAntesDeReporte();
-        List<Double> saldos = calcularSaldosHasta(periodoHasta);
+        List<Double> saldos = calcularSaldosHasta("");
 
         System.out.println("\n=== BALANCE GENERAL ===");
-        System.out.println("Periodo: " + descripcionPeriodo(true));
+        System.out.println("Balance al " + fechaActual());
         System.out.printf("%-8s %-35s %12s%n", "Codigo", "Nombre", "Saldo");
         System.out.println("-".repeat(60));
 
@@ -1323,16 +1243,8 @@ public class Contabilidad {
             System.out.println("ADVERTENCIA: El balance NO cuadra.");
         }
 
-        String fechaCorte = periodoHasta.isEmpty() ? fechaActual() : periodoHasta;
+        String fechaCorte = fechaActual();
         guardarBalance(fechaCorte, totalActivo, totalPasivo, patrimonioConResultado);
-    }
-
-    static double totalPorTipo(String tipo) {
-        return totalPorTipo(cuentaSaldos, tipo);
-    }
-
-    static double calcularResultadoEjercicio() {
-        return resultadoEjercicio(cuentaSaldos);
     }
 
     static void guardarBalance(String fecha, double activo, double pasivo, double patrimonio) {
@@ -1343,10 +1255,10 @@ public class Contabilidad {
 
     static void verEstadoResultados() {
         verificarSaldosAntesDeReporte();
-        List<Double> saldos = calcularSaldosRango(periodoDesde, periodoHasta);
+        List<Double> saldos = calcularSaldosRango("", "");
 
         System.out.println("\n=== ESTADO DE RESULTADOS ===");
-        System.out.println("Periodo: " + descripcionPeriodo(false));
+        System.out.println("Historico completo");
         System.out.printf("%-8s %-35s %12s%n", "Codigo", "Nombre", "Saldo");
         System.out.println("-".repeat(60));
 
@@ -1605,124 +1517,12 @@ public class Contabilidad {
         return Double.parseDouble(valor);
     }
 
-    static void verEstadoFlujoEfectivo() {
-        System.out.println("\n=== ESTADO DE FLUJO DE EFECTIVO ===");
-        System.out.println("Periodo: " + descripcionPeriodo(false));
-        System.out.println("(Metodo directo - basado en movimientos de Caja y Bancos)");
-        System.out.println();
-
-        double flujoOperacion = 0;
-        double flujoInversion = 0;
-        double flujoFinanciamiento = 0;
-
-        for (int i = 0; i < asientoFechas.size(); i++) {
-            if (!fechaEnPeriodo(asientoFechas.get(i))) continue;
-
-            List<String> cods = partidaCodigos.get(i);
-            List<String> tips = partidaTipos.get(i);
-            List<Double> mons = partidaMontos.get(i);
-            for (int j = 0; j < cods.size(); j++) {
-                String codigo = cods.get(j);
-                String tipo = tips.get(j);
-                double monto = mons.get(j);
-
-                if (codigo.equals("1000") || codigo.equals("1100")) {
-                    if (tipo.equalsIgnoreCase("Debito")) {
-                        flujoOperacion += monto;
-                    } else {
-                        flujoOperacion -= monto;
-                    }
-                } else if (codigo.startsWith("1") && !codigo.equals("1000") && !codigo.equals("1100")) {
-                    if (tipo.equalsIgnoreCase("Debito")) {
-                        flujoInversion -= monto;
-                    } else {
-                        flujoInversion += monto;
-                    }
-                } else if (codigo.startsWith("2")) {
-                    if (tipo.equalsIgnoreCase("Credito")) {
-                        flujoFinanciamiento += monto;
-                    } else {
-                        flujoFinanciamiento -= monto;
-                    }
-                }
-            }
-        }
-
-        System.out.println("FLUJO DE EFECTIVO POR ACTIVIDAD");
-        System.out.println("-".repeat(50));
-        System.out.printf("%-40s %12s%n", "Actividades de operacion:", flujoOperacion);
-        System.out.printf("%-40s %12s%n", "Actividades de inversion:", flujoInversion);
-        System.out.printf("%-40s %12s%n", "Actividades de financiamiento:", flujoFinanciamiento);
-        System.out.println("-".repeat(50));
-        System.out.printf("%-40s %12s%n", "Flujo neto total:", flujoOperacion + flujoInversion + flujoFinanciamiento);
-    }
-
-    static void verEstadoCambiosPatrimonio() {
-        verificarSaldosAntesDeReporte();
-        List<Double> saldos = calcularSaldosRango(periodoDesde, periodoHasta);
-
-        System.out.println("\n=== ESTADO DE CAMBIOS EN EL PATRIMONIO ===");
-        System.out.println("Periodo: " + descripcionPeriodo(false));
-        System.out.println();
-
-        double capitalSocial = 0;
-        double capitalAportado = 0;
-        double capitalGanado = 0;
-        double utilidadesRetenidas = 0;
-        double utilidadEjercicio = 0;
-        double perdidaEjercicio = 0;
-        double resultadosEjercicio = 0;
-        double reservasLegales = 0;
-        double ajustesRevaluacion = 0;
-        double dividendosDecretados = 0;
-
-        for (int i = 0; i < cuentaCodigos.size(); i++) {
-            String codigo = cuentaCodigos.get(i);
-            double saldo = saldos.get(i);
-
-            switch (codigo) {
-                case "3000": capitalSocial = saldo; break;
-                case "3010": capitalAportado = saldo; break;
-                case "3020": capitalGanado = saldo; break;
-                case "3100": utilidadesRetenidas = saldo; break;
-                case "3110": utilidadEjercicio = saldo; break;
-                case "3120": perdidaEjercicio = saldo; break;
-                case "3200": resultadosEjercicio = saldo; break;
-                case "3300": reservasLegales = saldo; break;
-                case "3400": ajustesRevaluacion = saldo; break;
-                case "3500": dividendosDecretados = saldo; break;
-            }
-        }
-
-        double resultadoEjercicio = resultadoEjercicio(saldos);
-        double patrimonioTotal = capitalSocial + capitalAportado + capitalGanado +
-                                 utilidadesRetenidas + utilidadEjercicio - perdidaEjercicio +
-                                 resultadosEjercicio + reservasLegales + ajustesRevaluacion -
-                                 dividendosDecretados + resultadoEjercicio;
-
-        System.out.println("MOVIMIENTOS DEL PATRIMONIO EN EL PERIODO");
-        System.out.println("-".repeat(60));
-        System.out.printf("%-40s %12s%n", "Capital social:", capitalSocial);
-        System.out.printf("%-40s %12s%n", "Capital aportado:", capitalAportado);
-        System.out.printf("%-40s %12s%n", "Capital ganado:", capitalGanado);
-        System.out.printf("%-40s %12s%n", "Utilidades retenidas:", utilidadesRetenidas);
-        System.out.printf("%-40s %12s%n", "Utilidad del ejercicio:", utilidadEjercicio);
-        System.out.printf("%-40s %12s%n", "Perdida del ejercicio:", perdidaEjercicio);
-        System.out.printf("%-40s %12s%n", "Resultados del ejercicio:", resultadosEjercicio);
-        System.out.printf("%-40s %12s%n", "Resultado del ejercicio:", resultadoEjercicio);
-        System.out.printf("%-40s %12s%n", "Reservas legales:", reservasLegales);
-        System.out.printf("%-40s %12s%n", "Ajustes por revaluacion:", ajustesRevaluacion);
-        System.out.printf("%-40s %12s%n", "Dividendos decretados:", dividendosDecretados);
-        System.out.println("-".repeat(60));
-        System.out.printf("%-40s %12s%n", "PATRIMONIO TOTAL:", patrimonioTotal);
-    }
-
     static void verBalanceComprobacion() {
         verificarSaldosAntesDeReporte();
-        List<Double> saldosPeriodo = calcularSaldosRango(periodoDesde, periodoHasta);
+        List<Double> saldosPeriodo = calcularSaldosRango("", "");
 
         System.out.println("\n=== BALANCE DE COMPROBACION ===");
-        System.out.println("Periodo: " + descripcionPeriodo(false));
+        System.out.println("Historico completo");
         System.out.println("(Verificacion: Debitos = Creditos por cuenta)");
         System.out.println();
         System.out.printf("%-8s %-35s %12s %12s %12s%n", "Codigo", "Nombre", "Debitos", "Creditos", "Saldo");
@@ -1740,8 +1540,6 @@ public class Contabilidad {
             double creditos = 0;
 
             for (int a = 0; a < asientoFechas.size(); a++) {
-                if (!fechaEnPeriodo(asientoFechas.get(a))) continue;
-
                 List<String> cods = partidaCodigos.get(a);
                 List<String> tips = partidaTipos.get(a);
                 List<Double> mons = partidaMontos.get(a);
@@ -1777,7 +1575,7 @@ public class Contabilidad {
 
     static void verLibroDiario() {
         System.out.println("\n=== LIBRO DIARIO ===");
-        System.out.println("Periodo: " + descripcionPeriodo(false));
+        System.out.println("Historico completo");
         System.out.println("(Ordenado por fecha - No. = numero de asiento original)");
         System.out.println();
 
@@ -1788,14 +1586,7 @@ public class Contabilidad {
 
         List<Integer> indices = new ArrayList<>();
         for (int i = 0; i < asientoFechas.size(); i++) {
-            if (fechaEnPeriodo(asientoFechas.get(i))) {
-                indices.add(i);
-            }
-        }
-
-        if (indices.isEmpty()) {
-            System.out.println("No hay asientos en el periodo seleccionado.");
-            return;
+            indices.add(i);
         }
 
         ordenarIndicesPorFecha(indices);
@@ -1814,7 +1605,7 @@ public class Contabilidad {
 
     static void verLibroMayor() {
         System.out.println("\n=== LIBRO MAYOR ===");
-        System.out.println("Periodo: " + descripcionPeriodo(false));
+        System.out.println("Historico completo");
         System.out.println("(Movimientos por cuenta individual)");
         System.out.println();
 
@@ -1825,22 +1616,16 @@ public class Contabilidad {
         }
 
         int idxCuenta = indiceCuenta(codigo);
-        double saldoInicial = saldoCuentaAntes(codigo, periodoDesde);
 
         System.out.println();
         System.out.println("CUENTA: " + cuentaCodigos.get(idxCuenta) + " - " + cuentaNombres.get(idxCuenta));
         System.out.println("Tipo: " + cuentaTipos.get(idxCuenta));
-        if (!periodoDesde.isEmpty()) {
-            System.out.printf("Saldo inicial al %s: %.2f%n", periodoDesde, saldoInicial);
-        }
         System.out.println();
 
         List<Integer> asientosMov = new ArrayList<>();
         List<Integer> partidasMov = new ArrayList<>();
 
         for (int i = 0; i < asientoFechas.size(); i++) {
-            if (!fechaEnPeriodo(asientoFechas.get(i))) continue;
-
             List<String> cods = partidaCodigos.get(i);
             for (int j = 0; j < cods.size(); j++) {
                 if (cods.get(j).equals(codigo)) {
@@ -1868,7 +1653,7 @@ public class Contabilidad {
         System.out.printf("%-5s %-20s %-10s %12s %12s%n", "As.", "Fecha", "Tipo", "Monto", "Saldo");
         System.out.println("-".repeat(65));
 
-        double saldo = saldoInicial;
+        double saldo = 0;
 
         for (int k = 0; k < asientosMov.size(); k++) {
             int i = asientosMov.get(k);
@@ -1888,6 +1673,149 @@ public class Contabilidad {
 
         System.out.println("-".repeat(65));
         System.out.printf("Saldo final: %.2f%n", saldo);
+    }
+
+    static void verCuentaTIndividual() {
+        String codigo = pedirCuenta();
+        if (codigo == null) {
+            System.out.println("Operacion cancelada.");
+            return;
+        }
+        mostrarCuentaT(indiceCuenta(codigo));
+    }
+
+    static void verCuentasTConMovimientos() {
+        System.out.println("\n=== CUENTAS T CON MOVIMIENTOS ===");
+        int mostradas = 0;
+        for (int i = 0; i < cuentaCodigos.size(); i++) {
+            if (cuentaTieneMovimientos(i)) {
+                mostrarCuentaT(i);
+                mostradas++;
+            }
+        }
+        if (mostradas == 0) {
+            System.out.println("No hay cuentas con movimientos registrados.");
+        } else {
+            System.out.println("\nTotal de cuentas con movimientos: " + mostradas);
+        }
+    }
+
+    static void verTodasCuentasT() {
+        System.out.println("\n=== CUENTAS T - CATALOGO COMPLETO ===");
+        for (int i = 0; i < cuentaCodigos.size(); i++) {
+            mostrarCuentaT(i);
+        }
+        System.out.println("\nTotal de cuentas: " + cuentaCodigos.size());
+    }
+
+    static boolean cuentaTieneMovimientos(int idxCuenta) {
+        String codigo = cuentaCodigos.get(idxCuenta);
+        for (int i = 0; i < asientoFechas.size(); i++) {
+            List<String> cods = partidaCodigos.get(i);
+            for (int j = 0; j < cods.size(); j++) {
+                if (cods.get(j).equals(codigo)) return true;
+            }
+        }
+        return false;
+    }
+
+    static void mostrarCuentaT(int idxCuenta) {
+        if (idxCuenta < 0 || idxCuenta >= cuentaCodigos.size()) return;
+
+        String codigo = cuentaCodigos.get(idxCuenta);
+        String nombre = cuentaNombres.get(idxCuenta);
+        String tipoCuenta = cuentaTipos.get(idxCuenta);
+
+        List<Integer> asientosOrdenados = new ArrayList<>();
+        for (int i = 0; i < asientoFechas.size(); i++) {
+            asientosOrdenados.add(i);
+        }
+        ordenarIndicesPorFecha(asientosOrdenados);
+
+        List<String> fechasDebe = new ArrayList<>();
+        List<String> conceptosDebe = new ArrayList<>();
+        List<Double> montosDebe = new ArrayList<>();
+        List<String> fechasHaber = new ArrayList<>();
+        List<String> conceptosHaber = new ArrayList<>();
+        List<Double> montosHaber = new ArrayList<>();
+
+        double totalDebe = 0;
+        double totalHaber = 0;
+
+        for (int k = 0; k < asientosOrdenados.size(); k++) {
+            int i = asientosOrdenados.get(k);
+            List<String> cods = partidaCodigos.get(i);
+            List<String> tips = partidaTipos.get(i);
+            List<Double> mons = partidaMontos.get(i);
+            int cantidad = Math.min(cods.size(), Math.min(tips.size(), mons.size()));
+
+            for (int j = 0; j < cantidad; j++) {
+                if (!cods.get(j).equals(codigo)) continue;
+
+                String fecha = asientoFechas.get(i);
+                String concepto = recortar(asientoDescripciones.get(i), 22);
+                double monto = mons.get(j);
+
+                if (tips.get(j).equalsIgnoreCase("Debito")) {
+                    fechasDebe.add(fecha);
+                    conceptosDebe.add(concepto);
+                    montosDebe.add(monto);
+                    totalDebe += monto;
+                } else {
+                    fechasHaber.add(fecha);
+                    conceptosHaber.add(concepto);
+                    montosHaber.add(monto);
+                    totalHaber += monto;
+                }
+            }
+        }
+
+        System.out.println();
+        System.out.println("=".repeat(95));
+        System.out.printf(" CUENTA T: %s - %s (%s)%n", codigo, nombre, tipoCuenta);
+        System.out.println("=".repeat(95));
+        System.out.printf("%-10s %-22s %12s | %-10s %-22s %12s%n",
+                "Fecha", "Concepto", "Monto", "Fecha", "Concepto", "Monto");
+        System.out.println("-".repeat(95));
+
+        int filas = Math.max(fechasDebe.size(), fechasHaber.size());
+        if (filas == 0) {
+            System.out.println("Sin movimientos.");
+        } else {
+            for (int f = 0; f < filas; f++) {
+                String fechaD = f < fechasDebe.size() ? fechasDebe.get(f) : "";
+                String conceptoD = f < conceptosDebe.size() ? conceptosDebe.get(f) : "";
+                String montoD = f < montosDebe.size() ? String.format("%.2f", montosDebe.get(f)) : "";
+                String fechaH = f < fechasHaber.size() ? fechasHaber.get(f) : "";
+                String conceptoH = f < conceptosHaber.size() ? conceptosHaber.get(f) : "";
+                String montoH = f < montosHaber.size() ? String.format("%.2f", montosHaber.get(f)) : "";
+                System.out.printf("%-10s %-22s %12s | %-10s %-22s %12s%n",
+                        fechaD, conceptoD, montoD, fechaH, conceptoH, montoH);
+            }
+        }
+
+        System.out.println("-".repeat(95));
+        System.out.printf("%-10s %-22s %12.2f | %-10s %-22s %12.2f%n",
+                "TOTAL DEBE", "", totalDebe, "TOTAL HABER", "", totalHaber);
+
+        double saldo = totalDebe - totalHaber;
+        String etiqueta;
+        if (saldo > 0.005) {
+            etiqueta = "Deudor";
+        } else if (saldo < -0.005) {
+            etiqueta = "Acreedor";
+        } else {
+            etiqueta = "Cero";
+            saldo = 0;
+        }
+        System.out.printf("%63s SALDO: %.2f (%s)%n", "", Math.abs(saldo), etiqueta);
+        System.out.println("=".repeat(95));
+    }
+
+    static String recortar(String texto, int ancho) {
+        if (texto == null) return "";
+        if (texto.length() <= ancho) return texto;
+        return texto.substring(0, ancho);
     }
 
     static void revertirAsiento() {
@@ -1940,7 +1868,7 @@ public class Contabilidad {
     }
 
     static void reiniciarDatos() {
-        System.out.println("\n--- REINICIAR DATOS DE PRUEBA (BETA) ---");
+        System.out.println("\n--- REINICIAR DATOS DE PRUEBA ---");
         System.out.println("ADVERTENCIA: Se borraran TODOS los asientos registrados.");
         System.out.println("Tambien se pondran en cero los saldos y se restauraran las 75 cuentas estandar.");
         System.out.println("Asientos actuales: " + asientoFechas.size());
@@ -1984,6 +1912,17 @@ public class Contabilidad {
         System.out.println("Datos reiniciados exitosamente.");
         System.out.println("Respaldo guardado en: " + respaldo);
         System.out.println("Catalogo restaurado con " + cuentaCodigos.size() + " cuentas.");
+    }
+
+    static void respaldarInformacion() {
+        System.out.println("\n--- RESPALDAR INFORMACION ---");
+        String respaldo = respaldarDatos("manual");
+        if (respaldo == null) {
+            System.out.println("No se pudo crear el respaldo.");
+            return;
+        }
+        System.out.println("Respaldo creado en: " + respaldo);
+        System.out.println("Incluye cuentas, asientos y balance (los archivos que existan).");
     }
 
     static String respaldarDatos(String etiqueta) {
