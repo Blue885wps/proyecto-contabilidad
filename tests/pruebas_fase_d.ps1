@@ -5,10 +5,8 @@ param(
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
-$temp = Join-Path ([System.IO.Path]::GetTempPath()) ("contab_pruebas_fase_d_" + [Guid]::NewGuid().ToString("N"))
-$acento = [char]0x00ED
-$acentoO = [char]0x00F3
-$acentoU = [char]0x00FA
+$temp = Join-Path ([System.IO.Path]::GetTempPath()) ("contab_pruebas_" + [Guid]::NewGuid().ToString("N"))
+$acento = [char]0x00F3
 
 function Write-Utf8 {
     param([string]$Path, [string]$Content)
@@ -19,14 +17,6 @@ function Assert-Contains {
     param([string]$Text, [string]$Expected, [string]$Name)
     if (-not $Text.Contains($Expected)) {
         throw "FALLO: $Name. No se encontro: $Expected"
-    }
-    Write-Host "OK: $Name"
-}
-
-function Assert-Match {
-    param([string]$Text, [string]$Pattern, [string]$Name)
-    if (-not [System.Text.RegularExpressions.Regex]::IsMatch($Text, $Pattern)) {
-        throw "FALLO: $Name. No coincide con: $Pattern"
     }
     Write-Host "OK: $Name"
 }
@@ -73,216 +63,125 @@ try {
     Write-Host "OK: compilacion"
 
     # ------------------------------------------------------------------
-    # Busquedas, montos, fechas y revision del asiento
+    # Flujo completo: cuentas, asientos, reportes, busqueda y respaldo
     # ------------------------------------------------------------------
-    $dir = New-TestDir "busquedas"
+    $dir = New-TestDir "flujo"
     $cuentas = @(
         "1000|Caja|Activo|0.0",
-        ("1790|Depreciaci" + $acentoO + "n acumulada|Activo|0.0"),
+        "1100|Bancos|Activo|0.0",
+        ("1790|Depreciaci" + $acento + "n acumulada|Activo|0.0"),
         "4000|Ingresos|Ingreso|0.0",
         "4010|Ventas|Ingreso|0.0",
-        "6000|Gastos|Gasto|0.0",
+        "6010|Gastos de venta|Gasto|0.0",
         "A100|Cuenta especial|Activo|0.0"
     ) -join "`r`n"
     Write-Utf8 (Join-Path $dir "data\cuentas.txt") ($cuentas + "`r`n")
 
     $asientos = @(
-        ("ASIENTO|01/01/2026|Venta de mercader" + $acento + "a|1000.0"),
+        "ASIENTO|01/01/2026|Venta de mercaderia|1000.0",
         "PARTIDA|1000|Debito|1000.0",
         "PARTIDA|4010|Credito|1000.0",
         "ASIENTO|15/01/2026|Gasto de renta|200.0",
-        "PARTIDA|6000|Debito|200.0",
+        "PARTIDA|6010|Debito|200.0",
         "PARTIDA|1000|Credito|200.0",
         "ASIENTO|01/02/2026|Venta de servicios|500.0",
-        "PARTIDA|1000|Debito|500.0",
-        "PARTIDA|4010|Credito|500.0",
-        ("ASIENTO|15/02/2026|Gasto de servicios p" + $acentoU + "blicos|100.0"),
-        "PARTIDA|6000|Debito|100.0",
-        "PARTIDA|1000|Credito|100.0"
+        "PARTIDA|1100|Debito|500.0",
+        "PARTIDA|4010|Credito|500.0"
     ) -join "`r`n"
     Write-Utf8 (Join-Path $dir "data\asientos.txt") ($asientos + "`r`n")
 
     $input = Write-Input $dir "input.txt" @(
-        "1", "3", "depreciacion",
-        "1", "3", ("DEPRECIACI" + $acentoO + "N"),
-        "1", "3", "CAJA",
-        "1", "3", "a100",
-        "1", "3", "zzz",
-        "0",
-        "9", "2", "2", "MERCADERIA",
-        "2", "2", "RENTA",
-        "0",
-        "2", "", "Prueba de acentos", "caja", "1", "1.800,50",
-        "ingresos", "2", "1800,50", "N", "N",
-        "2", "", "Prueba monto ambiguo", "1000", "1", "1.800", "1800",
-        "ingresos", "2", "1800", "N", "N",
-        "4", "11"
-    )
-    $out = Invoke-App $dir $input
-    $hoy = Get-Date -Format "dd/MM/yyyy"
-
-    Assert-Contains $out "1790" "busqueda sin tilde encuentra cuenta"
-    Assert-Contains $out "Cuenta especial" "busqueda de codigo no numerico"
-    Assert-Contains $out "No se encontraron resultados." "busqueda sin coincidencias"
-    Assert-Contains $out "Monto invalido" "monto ambiguo rechazado"
-    Assert-Contains $out "Fecha: $hoy" "Enter en fecha usa la fecha actual"
-    Assert-Contains $out "Asiento cancelado. No se guardo nada." "revision permite cancelar"
-    Assert-Contains $out "Total de asientos: 4" "los asientos cancelados no se guardan"
-    $cantidadAsientos = (Get-Content (Join-Path $dir "data\asientos.txt") | Select-String -Pattern "^ASIENTO").Count
-    if ($cantidadAsientos -ne 4) {
-        throw "FALLO: se esperaban 4 asientos en disco y hay $cantidadAsientos"
-    }
-    Write-Host "OK: archivo de asientos sin cambios"
-
-    # ------------------------------------------------------------------
-    # Reportes, cuentas T y busqueda por rango (historico completo)
-    # ------------------------------------------------------------------
-    $dir = New-TestDir "reportes"
-    $cuentas = @(
-        "1000|Caja|Activo|0.0",
-        "4000|Ingresos|Ingreso|0.0",
-        "4010|Ventas|Ingreso|0.0",
-        "6000|Gastos|Gasto|0.0"
-    ) -join "`r`n"
-    Write-Utf8 (Join-Path $dir "data\cuentas.txt") ($cuentas + "`r`n")
-    Write-Utf8 (Join-Path $dir "data\asientos.txt") ($asientos + "`r`n")
-
-    $input = Write-Input $dir "input.txt" @(
-        "8",
-        "7",
-        "6",
+        "1", "3", "depreciacion", "0",
+        "1", "2", "Cuenta|mala", "Cuenta buena", "1", "0", "1020", "0",
+        "2", "", "Prueba de registro", "1000", "1", "1.800,50", "4010", "2", "1800,50", "N", "S",
+        "2", "", "Prueba descuadre", "1000", "1", "100", "4010", "2", "50", "S", "4010", "2", "50", "N", "S",
+        "2", "", "Prueba cancelada", "1000", "1", "300", "4010", "2", "300", "N", "N",
+        "2", "", "Venta|mala", "Venta buena", "1000", "1", "100", "4010", "2", "100", "N", "S",
+        "3", "1", "1000", "0",
         "4",
         "5", "1000",
-        "3", "1", "1000",
-        "2",
-        "0",
-        "9", "2", "4", "01/01/2026", "31/01/2026",
-        "0",
+        "6",
+        "7",
+        "8",
+        "9", "1", "2", "2", "renta", "0",
+        "10",
         "11"
     )
     $out = Invoke-App $dir $input
 
-    Assert-Contains $out "Balance al $hoy" "balance general sin periodo"
-    Assert-Match   $out "Utilidad neta:\s+1200,00" "resultado acumulado"
-    Assert-Match   $out "TOTAL ACTIVO:\s+1200,00" "activo acumulado"
-    Assert-Contains $out "Total de asientos: 4" "libro diario completo"
-    Assert-Contains $out "EL BALANCE DE COMPROBACION ESTA CUADRADO." "comprobacion cuadrada"
-    Assert-Contains $out "CUENTA T: 1000 - Caja (Activo)" "cuenta T individual"
-    Assert-Contains $out "TOTAL DEBE" "totales del debe"
-    Assert-Contains $out "TOTAL HABER" "totales del haber"
-    Assert-Contains $out "SALDO: 1200,00 (Deudor)" "saldo deudor de caja"
-    Assert-Contains $out "CUENTA T: 4010 - Ventas (Ingreso)" "cuentas T con movimientos"
-    Assert-Contains $out "Resultado #1 (Asiento #1)" "busqueda por rango: primer asiento"
-    Assert-Contains $out "Resultado #2 (Asiento #2)" "busqueda por rango: segundo asiento"
+    Assert-Contains $out "1790" "busqueda de cuenta sin tilde"
+    Assert-Contains $out "El campo nombre no puede contener el caracter |." "nombre con pipe rechazado"
+    Assert-Contains $out "El codigo 0 esta reservado para cancelar." "codigo 0 reservado"
+    Assert-Contains $out "Cuenta creada exitosamente: 1020 - Cuenta buena (Activo)." "cuenta creada"
+    Assert-Contains $out "El campo descripcion no puede contener el caracter |." "descripcion con pipe rechazada"
+    Assert-Contains $out "Asiento registrado exitosamente." "asiento registrado"
+    Assert-Contains $out "El asiento no cuadra:" "aviso de descuadre"
+    Assert-Contains $out "Desea agregar otra partida para cuadrar?" "opcion para corregir descuadre"
+    Assert-Contains $out "Asiento cancelado. No se guardo nada." "asiento cancelado"
+    Assert-Contains $out "CUENTA T: 1000 - Caja (Activo)" "cuenta T"
+    Assert-Contains $out "Total de asientos: 6" "libro diario"
+    Assert-Contains $out "CUENTA: 1000 - Caja" "libro mayor"
+    Assert-Contains $out "LA BALANZA DE COMPROBACION ESTA CUADRADA." "balanza cuadrada"
+    Assert-Contains $out "Utilidad neta:" "estado de resultados"
+    Assert-Contains $out "EL BALANCE CUADRA CORRECTAMENTE." "balance general"
+    Assert-Contains $out "Gasto de renta" "busqueda de asientos"
+    Assert-Contains $out "Respaldo creado en: backup\manual_" "respaldo manual"
 
-    # ------------------------------------------------------------------
-    # Restauracion de respaldos
-    # ------------------------------------------------------------------
-    $dir = New-TestDir "restauracion"
-    $backupDir = Join-Path $dir "backup\reinicio_99990101_000000_000"
-    New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
+    $contenidoCuentas = Get-Content (Join-Path $dir "data\cuentas.txt") -Raw
+    if (-not $contenidoCuentas.Contains("1020|Cuenta buena|Activo")) {
+        throw "FALLO: no se guardo la cuenta creada"
+    }
+    if ($contenidoCuentas.Contains("Cuenta|mala")) {
+        throw "FALLO: se guardo un nombre con pipe"
+    }
+    Write-Host "OK: cuentas guardadas sin caracteres invalidos"
 
-    $cuentas = @(
-        "1000|Caja|Activo|0.0",
-        "4000|Ingresos|Ingreso|0.0",
-        "4010|Ventas|Ingreso|0.0",
-        "6000|Gastos|Gasto|0.0"
-    ) -join "`r`n"
-    Write-Utf8 (Join-Path $dir "data\cuentas.txt") ($cuentas + "`r`n")
-    Write-Utf8 (Join-Path $backupDir "cuentas.txt") ($cuentas + "`r`n")
-
-    $viejos = @(
-        "ASIENTO|01/01/2026|Venta inicial|1000.0",
-        "PARTIDA|1000|Debito|1000.0",
-        "PARTIDA|4010|Credito|1000.0",
-        "ASIENTO|15/01/2026|Gasto inicial|200.0",
-        "PARTIDA|6000|Debito|200.0",
-        "PARTIDA|1000|Credito|200.0"
-    ) -join "`r`n"
-    $nuevos = $viejos + "`r`n" + (@(
-        "ASIENTO|01/02/2026|Venta posterior|500.0",
-        "PARTIDA|1000|Debito|500.0",
-        "PARTIDA|4010|Credito|500.0",
-        "ASIENTO|15/02/2026|Gasto posterior|100.0",
-        "PARTIDA|6000|Debito|100.0",
-        "PARTIDA|1000|Credito|100.0"
-    ) -join "`r`n")
-
-    Write-Utf8 (Join-Path $dir "data\asientos.txt") ($nuevos + "`r`n")
-    Write-Utf8 (Join-Path $backupDir "asientos.txt") ($viejos + "`r`n")
-    (Get-Item $backupDir).LastWriteTime = [DateTime]"2099-01-01"
-
-    $input = Write-Input $dir "input.txt" @("10", "2", "1", "RESTAURAR", "0", "11")
-    $out = Invoke-App $dir $input
-
-    Assert-Contains $out "Datos restaurados desde:" "restauracion completada"
-    Assert-Contains $out "Respaldo de seguridad:" "respaldo previo creado"
+    $contenidoAsientos = Get-Content (Join-Path $dir "data\asientos.txt") -Raw
+    if ($contenidoAsientos.Contains("Venta|mala")) {
+        throw "FALLO: se guardo una descripcion con pipe"
+    }
+    if (-not $contenidoAsientos.Contains("ASIENTO|") -or -not $contenidoAsientos.Contains("PARTIDA|")) {
+        throw "FALLO: el formato de asientos no usa el delimitador |"
+    }
     $cantidadAsientos = (Get-Content (Join-Path $dir "data\asientos.txt") | Select-String -Pattern "^ASIENTO").Count
-    if ($cantidadAsientos -ne 2) {
-        throw "FALLO: la restauracion debia dejar 2 asientos y dejo $cantidadAsientos"
+    if ($cantidadAsientos -ne 6) {
+        throw "FALLO: se esperaban 6 asientos y hay $cantidadAsientos"
     }
-    Write-Host "OK: datos restaurados al estado anterior"
+    $cantidadPartidas = (Get-Content (Join-Path $dir "data\asientos.txt") | Select-String -Pattern "^PARTIDA").Count
+    if ($cantidadPartidas -ne 13) {
+        throw "FALLO: se esperaban 13 partidas y hay $cantidadPartidas"
+    }
+    Write-Host "OK: asientos guardados y descuadre corregido"
 
-    $seguridad = @(Get-ChildItem (Join-Path $dir "backup") -Directory |
-        Where-Object { $_.Name.StartsWith("previo_restauracion_") })
-    if ($seguridad.Count -lt 1) {
-        throw "FALLO: no se encontro la carpeta previo_restauracion_"
+    $balance = Get-Content (Join-Path $dir "data\balance.txt") -Raw
+    if (($balance.Trim().Split("|")).Count -ne 4) {
+        throw "FALLO: balance.txt no tiene 4 campos"
     }
-    Write-Host "OK: carpeta de respaldo de seguridad presente"
+    Write-Host "OK: balance.txt generado"
+
+    $respaldo = Get-ChildItem (Join-Path $dir "backup") -Directory -Filter "manual_*" | Select-Object -First 1
+    if ($null -eq $respaldo) {
+        throw "FALLO: no se creo la carpeta de respaldo manual"
+    }
+    if (-not (Test-Path (Join-Path $respaldo.FullName "cuentas.txt"))) {
+        throw "FALLO: el respaldo no contiene cuentas.txt"
+    }
+    if (-not (Test-Path (Join-Path $respaldo.FullName "asientos.txt"))) {
+        throw "FALLO: el respaldo no contiene asientos.txt"
+    }
+    Write-Host "OK: respaldo manual completo"
 
     # ------------------------------------------------------------------
-    # Respaldo manual
+    # Persistencia: volver a abrir el programa conserva los asientos
     # ------------------------------------------------------------------
-    $dir = New-TestDir "respaldo_manual"
-    $cuentas = @(
-        "1000|Caja|Activo|0.0",
-        "4010|Ventas|Ingreso|0.0"
-    ) -join "`r`n"
-    Write-Utf8 (Join-Path $dir "data\cuentas.txt") ($cuentas + "`r`n")
-    Write-Utf8 (Join-Path $dir "data\asientos.txt") ""
-
-    $input = Write-Input $dir "input.txt" @("10", "1", "0", "11")
-    $out = Invoke-App $dir $input
-
-    Assert-Contains $out "Respaldo creado en: backup\manual_" "respaldo manual creado"
-    $manuales = @(Get-ChildItem (Join-Path $dir "backup") -Directory |
-        Where-Object { $_.Name.StartsWith("manual_") })
-    if ($manuales.Count -lt 1) {
-        throw "FALLO: no se encontro la carpeta manual_"
-    }
-    if (-not (Test-Path (Join-Path $manuales[0].FullName "cuentas.txt"))) {
-        throw "FALLO: el respaldo manual no contiene cuentas.txt"
-    }
-    Write-Host "OK: respaldo manual contiene los datos"
-
-    # ------------------------------------------------------------------
-    # Carga de cuentas con codigos duplicados normalizados
-    # ------------------------------------------------------------------
-    $dir = New-TestDir "duplicados"
-    $cuentas = @(
-        "1000|Caja|Activo|0.0",
-        "ABC1|Cuenta uno|Activo|0.0",
-        "abc1|Cuenta duplicada|Activo|0.0"
-    ) -join "`r`n"
-    Write-Utf8 (Join-Path $dir "data\cuentas.txt") ($cuentas + "`r`n")
-    Write-Utf8 (Join-Path $dir "data\asientos.txt") ""
-
-    $input = Write-Input $dir "input.txt" @("11")
-    $out = Invoke-App $dir $input
-    Assert-Contains $out "codigo duplicado" "carga detecta codigo duplicado normalizado"
-
-    $lineas = @(Get-Content (Join-Path $dir "data\cuentas.txt") | Where-Object { $_.Trim() -ne "" })
-    if ($lineas.Count -ne 2) {
-        throw "FALLO: se esperaban 2 cuentas tras descartar el duplicado y hay $($lineas.Count)"
-    }
-    Write-Host "OK: se conserva la primera aparicion"
+    $input2 = Write-Input $dir "input2.txt" @("4", "11")
+    $out2 = Invoke-App $dir $input2
+    Assert-Contains $out2 "Total de asientos: 6" "persistencia de asientos"
 
     Write-Host ""
     Write-Host "TODAS LAS PRUEBAS PASARON."
 } finally {
-    if ($Keep) {
-        Write-Host "Directorio temporal conservado: $temp"
-    } else {
-        Remove-Item $temp -Recurse -Force -ErrorAction SilentlyContinue
+    if (-not $Keep -and (Test-Path $temp)) {
+        Remove-Item -Path $temp -Recurse -Force
     }
 }

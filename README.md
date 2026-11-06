@@ -46,28 +46,22 @@ de 75 cuentas.
 1. Ver catalogo
 2. Crear cuenta
 3. Buscar cuenta
-4. Reiniciar datos de prueba
 0. Volver
 
 **3. Consultar cuentas T**
 
-1. Una cuenta
+1. Consultar una cuenta
 2. Cuentas con movimientos
-3. Catalogo completo
+3. Cuentas T de todo el catalogo
 0. Volver
 
 **9. Consultar movimientos**
 
 1. Ver asientos registrados
-2. Buscar asientos (por fecha, descripcion, cuenta o rango de fechas)
-3. Revertir asiento
+2. Buscar asientos
 0. Volver
 
-**10. Respaldar informacion**
-
-1. Crear respaldo manual
-2. Restaurar respaldo
-0. Volver
+La opcion 10 crea el respaldo directamente, sin submenu.
 
 ## Busquedas
 
@@ -77,15 +71,20 @@ cuenta. Tambien se puede buscar por una parte del codigo o del nombre.
 
 En las opciones que piden una cuenta:
 
-- Escriba un codigo o parte del nombre.
-- Si hay una sola coincidencia, se usa directamente.
+- Escriba el codigo (por ejemplo, `1000`) o parte del nombre (por ejemplo, `caja`).
+- Si hay una sola coincidencia, se muestra y se usa directamente.
 - Si hay varias, se muestra una lista numerada para elegir.
+- En esa lista, escriba `V` para volver a buscar sin cancelar la operacion.
 - Escriba `?` para ver el catalogo completo.
-- Escriba `0` para cancelar.
+- Escriba `0` para cancelar la operacion.
+
+La busqueda de asientos permite buscar por fecha exacta o por texto en la
+descripcion.
 
 ## Montos y fechas
 
-Los montos aceptan coma o punto decimal:
+Los montos aceptan coma o punto decimal. Escriba solo numeros y separadores;
+no use simbolos de moneda como `$`.
 
 ```text
 1800
@@ -100,18 +99,22 @@ como `1.800` (tres decimales con un solo punto). En ese caso use `1800` o
 `1.800,00`.
 
 Las fechas usan el formato `dd/MM/yyyy`. En los campos de fecha, Enter usa la
-fecha actual. En la busqueda por rango de fechas, Enter significa "sin limite".
+fecha actual.
 
 ## Registro de operaciones
 
-La opcion 2 pide fecha, descripcion y al menos dos partidas. Despues de la
-segunda partida se puede agregar otra con `S/N`. El tipo de partida se elige con
-un menu (1 = Debito, 2 = Credito).
+La opcion 2 pide fecha, descripcion y al menos dos partidas. Cada partida tiene
+cuenta, lado y monto. El lado se elige con un menu (1 = Debe (debito), 2 = Haber
+(credito)). Despues de cada partida se muestra el acumulado del Debe y del Haber;
+despues de la segunda se puede agregar otra con `S/N`.
 
-Antes de guardar se muestra un resumen con las cuentas, los montos y los totales.
-Se debe confirmar con `S/N`. Si se rechaza, el asiento no se guarda. El sistema
-verifica que el total de debitos sea igual al total de creditos; si no cuadra,
-rechaza el asiento.
+Si el asiento no cuadra, se muestra la diferencia entre el Debe y el Haber y se
+ofrece agregar otra partida para corregirlo o descartar el asiento. Antes de
+guardar se muestra un resumen con las cuentas, los montos y los totales. Se debe
+confirmar con `S/N`. Si se rechaza, el asiento no se guarda.
+
+Las descripciones, nombres y codigos no pueden contener el caracter `|`. Los
+codigos `0` y `?` estan reservados para cancelar y ver el catalogo.
 
 ## Cuentas T
 
@@ -141,17 +144,13 @@ El balance general guarda la fecha de generacion en `data/balance.txt`.
 
 ## Respaldos
 
-El programa crea respaldos en `backup/`:
+La opcion 10 crea una copia manual en `backup/manual_YYYYMMDD_HHmmss_SSS/` con
+los archivos de datos que existan. No hay respaldos automaticos ni restauracion
+desde el programa.
 
-- `diario_YYYYMMDD/`: una vez al dia al iniciar. Se conservan los ultimos 10.
-- `ajuste_.../`: cuando corrige saldos, fechas o totales automaticamente.
-- `manual_.../`: al usar la opcion 10.1 (respaldo manual).
-- `reinicio_.../`: antes de reiniciar los datos (opcion 1.4).
-- `previo_restauracion_.../`: antes de restaurar un respaldo (opcion 10.2).
-
-La opcion 10.2 lista los respaldos disponibles, pide el numero y exige escribir
-`RESTAURAR`. Antes de restaurar crea un respaldo de seguridad. Si la restauracion
-falla, intenta recuperar automaticamente el estado anterior.
+Para recuperar un respaldo, cierre el programa y copie manualmente
+`cuentas.txt`, `asientos.txt` y `balance.txt` desde la carpeta del respaldo
+hacia `data/`.
 
 ## Archivos de datos
 
@@ -162,10 +161,11 @@ data/
   balance.txt    Ultimo balance generado: fecha|activo|pasivo|patrimonio
 ```
 
-- `asientos.txt` es la fuente de verdad; los saldos se recalculan desde ahi.
+- `asientos.txt` es la fuente de verdad; los saldos se recalculan desde ahi al
+  iniciar.
 - No edite `cuentas.txt` ni `balance.txt` a mano salvo que sepa lo que hace.
-- El programa avisa si detecta cambios externos en los archivos, pero no los
-  recarga: el proximo guardado sobrescribira esas ediciones.
+- Si edita los archivos con el programa abierto, los cambios no se recargan:
+  el proximo guardado sobrescribira esas ediciones.
 
 ## Pruebas
 
@@ -181,10 +181,3 @@ Use `-Keep` para conservar el directorio temporal y revisar las salidas:
 ```powershell
 powershell -ExecutionPolicy Bypass -File tests/pruebas_fase_d.ps1 -Keep
 ```
-
-## Reinicio de datos
-
-La opcion 1.4 borra todos los asientos, deja las 75 cuentas estandar con saldo
-cero y elimina `balance.txt`. Antes crea un respaldo `reinicio_.../` y exige
-escribir `REINICIAR`. Use esta opcion solo en pruebas o cuando quiera empezar de
-cero.
