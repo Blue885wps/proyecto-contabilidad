@@ -1,36 +1,10 @@
-# Archivos compilados
-bin/
-*.class
+# Ignorar todo por defecto
+*
 
-# Datos generados por el programa (ignorar contenido pero mantener estructura)
-data/*
-!data/.gitkeep
-
-# Respaldos generados en tiempo de ejecucion
-backup/
-
-# Temporales de escritura atomica
-*.tmp
-
-# Archivos de configuracion del editor
-.vscode/
-.idea/
-*.swp
-*.iml
-
-# Archivos del sistema operativo
-.DS_Store
-Thumbs.db
-Desktop.ini
-
-# Archivos de log
-*.log
-
-# Documentacion interna
-AGENTS.md
-
-# Configuracion local del entorno
-/opencode.json
-
-# Documento de la consigna (no forma parte del entregable)
-/Tarea de curso.docx
+# Archivos que si forman parte del proyecto
+!.gitignore
+!README.md
+!src/
+!src/Contabilidad.java
+!tests/
+!tests/pruebas_fase_d.ps1
