@@ -16,6 +16,8 @@ public class Contabilidad {
     static final String[] TIPOS_CUENTA = {"Activo", "Pasivo", "Patrimonio", "Ingreso", "Costo", "Gasto"};
 
     static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    static final DateTimeFormatter FORMATO_FECHA_ESTRICTA = DateTimeFormatter.ofPattern("dd/MM/uuuu")
+            .withResolverStyle(ResolverStyle.STRICT);
     static final DateTimeFormatter FORMATO_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS");
 
     // Catalogo estandar de 75 cuentas: codigo|nombre|tipo
@@ -61,6 +63,9 @@ public class Contabilidad {
     static List<List<String>> partidaCodigos = new ArrayList<>();
     static List<List<String>> partidaTipos = new ArrayList<>();
     static List<List<Double>> partidaMontos = new ArrayList<>();
+
+    static boolean bloquearGuardadoAsientos = false;
+    static boolean saldoContrarioEnReporte = false;
 
     public static void main(String[] args) {
         System.out.println("=== SISTEMA CONTABLE EMPRESARIAL ===");
@@ -165,14 +170,14 @@ public class Contabilidad {
         if (!dir.exists()) dir.mkdirs();
 
         cargarCuentasTexto(ARCHIVO_CUENTAS);
-        cargarAsientosTexto(ARCHIVO_ASIENTOS);
-
         if (cuentaCodigos.isEmpty()) {
             System.out.println("Inicializando catalogo de cuentas...");
             inicializarCuentas();
         }
 
+        cargarAsientosTexto(ARCHIVO_ASIENTOS);
         recalcularSaldos();
+        advertirSaldosContrarios();
     }
 
     static void inicializarCuentas() {
@@ -242,6 +247,7 @@ public class Contabilidad {
 
         File file = new File(archivo);
         if (!file.exists()) return;
+        boolean huboDescarte = false;
 
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String linea;
@@ -250,42 +256,91 @@ public class Contabilidad {
                 numeroLinea++;
                 if (linea.startsWith("\uFEFF")) linea = linea.substring(1);
                 if (linea.trim().isEmpty()) continue;
-                String[] partes = linea.split("\\|");
+                String[] partes = linea.split("\\|", -1);
                 if (partes.length != 4) {
                     advertir(archivo, numeroLinea, "se esperaban 4 campos. Linea omitida.");
+                    huboDescarte = true;
                     continue;
                 }
 
-                if (!tipoValido(partes[2])) {
-                    advertir(archivo, numeroLinea, "tipo de cuenta invalido ('" + partes[2] + "'). Linea omitida.");
+                String codigo = partes[0].trim();
+                String nombre = partes[1].trim();
+                String tipo = partes[2].trim();
+
+                if (codigo.isEmpty()) {
+                    advertir(archivo, numeroLinea, "codigo de cuenta vacio. Linea omitida.");
+                    huboDescarte = true;
+                    continue;
+                }
+                if (nombre.isEmpty()) {
+                    advertir(archivo, numeroLinea, "nombre de cuenta vacio. Linea omitida.");
+                    huboDescarte = true;
+                    continue;
+                }
+                if (!tipoValido(tipo)) {
+                    advertir(archivo, numeroLinea, "tipo de cuenta invalido ('" + tipo + "'). Linea omitida.");
+                    huboDescarte = true;
                     continue;
                 }
 
                 double saldo = 0;
                 try {
-                    saldo = Double.parseDouble(partes[3]);
+                    saldo = Double.parseDouble(partes[3].trim());
                     if (!Double.isFinite(saldo)) throw new NumberFormatException();
                 } catch (NumberFormatException e) {
-                    advertir(archivo, numeroLinea, "saldo invalido ('" + partes[3] + "'). Se usara 0.0.");
+                    advertir(archivo, numeroLinea, "saldo invalido ('" + partes[3].trim() + "'). Se usara 0.0.");
                     saldo = 0;
                 }
 
-                if (existeCuenta(partes[0]) || existeCodigoNormalizado(partes[0])) {
-                    advertir(archivo, numeroLinea, "codigo duplicado " + partes[0] + ". Se conserva la primera aparicion.");
+                if (existeCuenta(codigo) || existeCodigoNormalizado(codigo)) {
+                    advertir(archivo, numeroLinea, "codigo duplicado " + codigo + ". Se conserva la primera aparicion.");
+                    huboDescarte = true;
                     continue;
                 }
 
-                cuentaCodigos.add(partes[0]);
-                cuentaNombres.add(partes[1]);
-                cuentaTipos.add(partes[2]);
+                cuentaCodigos.add(codigo);
+                cuentaNombres.add(nombre);
+                cuentaTipos.add(tipo);
                 cuentaSaldos.add(saldo);
             }
         } catch (IOException e) {
             System.out.println("Error leyendo " + archivo + ": " + e.getMessage());
         }
+
+        if (huboDescarte) {
+            System.out.println("ADVERTENCIA: " + archivo + " contiene lineas invalidas. Se cargaron solo las cuentas validas.");
+            respaldarArchivoInvalido(archivo, "cuentas_invalidas");
+        }
+    }
+
+    static boolean respaldarArchivoInvalido(String archivo, String prefijo) {
+        File origen = new File(archivo);
+        if (!origen.exists()) return true;
+
+        File dir = new File("backup");
+        if (!dir.exists() && !dir.mkdirs()) {
+            System.out.println("ADVERTENCIA: no se pudo crear la carpeta backup.");
+            return false;
+        }
+
+        String marca = LocalDateTime.now().format(FORMATO_TIMESTAMP);
+        File destino = new File(dir, prefijo + "_" + marca + ".txt");
+        try {
+            Files.copy(origen.toPath(), destino.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            System.out.println("Se guardo una copia del archivo original en: " + destino.getPath());
+            return true;
+        } catch (IOException e) {
+            System.out.println("ADVERTENCIA: no se pudo guardar la copia de seguridad de " + archivo + ": " + e.getMessage());
+            return false;
+        }
     }
 
     static void guardarAsientos() {
+        if (bloquearGuardadoAsientos) {
+            System.out.println("No se guardaron los asientos: corrija " + ARCHIVO_ASIENTOS + " y reinicie el programa.");
+            return;
+        }
+
         StringBuilder contenido = new StringBuilder();
         for (int i = 0; i < asientoFechas.size(); i++) {
             contenido.append("ASIENTO|").append(limpiarCampo(asientoFechas.get(i))).append('|')
@@ -314,61 +369,239 @@ public class Contabilidad {
         File file = new File(archivo);
         if (!file.exists()) return;
 
+        int validos = 0;
+        int omitidos = 0;
+        boolean huboDescarte = false;
+
+        boolean enAsiento = false;
+        int lineaAsiento = 0;
+        String fecha = null;
+        String descripcion = null;
+        String totalTexto = null;
+        List<String> cods = null;
+        List<String> tips = null;
+        List<Double> mons = null;
+        boolean bloqueInvalido = false;
+        List<String> errores = new ArrayList<>();
+        List<String> avisos = new ArrayList<>();
+
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String linea;
             int numeroLinea = 0;
-            List<String> cods = null;
-            List<String> tips = null;
-            List<Double> mons = null;
 
             while ((linea = reader.readLine()) != null) {
                 numeroLinea++;
                 if (linea.startsWith("\uFEFF")) linea = linea.substring(1);
                 if (linea.trim().isEmpty()) continue;
-                String[] partes = linea.split("\\|");
+                String[] partes = linea.split("\\|", -1);
+                String etiqueta = partes[0].trim();
 
-                if (partes[0].equals("ASIENTO")) {
-                    cods = null;
-                    tips = null;
-                    mons = null;
-                    try {
-                        double total = Double.parseDouble(partes[3]);
-                        if (!Double.isFinite(total)) throw new NumberFormatException();
-                        asientoFechas.add(partes[1]);
-                        asientoDescripciones.add(partes[2]);
-                        asientoTotales.add(total);
-                        cods = new ArrayList<>();
-                        tips = new ArrayList<>();
-                        mons = new ArrayList<>();
-                        partidaCodigos.add(cods);
-                        partidaTipos.add(tips);
-                        partidaMontos.add(mons);
-                    } catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
-                        advertir(archivo, numeroLinea, "ASIENTO invalido. Asiento omitido.");
+                if (etiqueta.equals("ASIENTO")) {
+                    if (enAsiento) {
+                        if (agregarAsientoCargado(archivo, lineaAsiento, fecha, descripcion, totalTexto,
+                                cods, tips, mons, bloqueInvalido, errores, avisos)) {
+                            validos++;
+                        } else {
+                            omitidos++;
+                            huboDescarte = true;
+                        }
                     }
-                } else if (partes[0].equals("PARTIDA")) {
-                    if (cods == null) {
+
+                    enAsiento = true;
+                    lineaAsiento = numeroLinea;
+                    fecha = null;
+                    descripcion = null;
+                    totalTexto = null;
+                    cods = new ArrayList<>();
+                    tips = new ArrayList<>();
+                    mons = new ArrayList<>();
+                    bloqueInvalido = false;
+                    errores = new ArrayList<>();
+                    avisos = new ArrayList<>();
+
+                    if (partes.length != 4) {
+                        bloqueInvalido = true;
+                        errores.add("se esperaban 4 campos en ASIENTO y hay " + partes.length);
+                    } else {
+                        fecha = partes[1].trim();
+                        descripcion = partes[2].trim();
+                        totalTexto = partes[3].trim();
+                    }
+                } else if (etiqueta.equals("PARTIDA")) {
+                    if (!enAsiento) {
                         advertir(archivo, numeroLinea, "PARTIDA sin ASIENTO previo. Linea omitida.");
+                        huboDescarte = true;
                         continue;
                     }
-                    try {
-                        String tipo = partes[2];
-                        double monto = Double.parseDouble(partes[3]);
-                        if (!tipo.equalsIgnoreCase("Debito") && !tipo.equalsIgnoreCase("Credito")) {
-                            throw new NumberFormatException();
-                        }
-                        if (!Double.isFinite(monto) || monto <= 0) throw new NumberFormatException();
-                        cods.add(partes[1]);
-                        tips.add(partes[2]);
-                        mons.add(monto);
-                    } catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
-                        advertir(archivo, numeroLinea, "PARTIDA invalida. Partida omitida.");
+                    if (bloqueInvalido) {
+                        continue;
                     }
+                    if (partes.length != 4) {
+                        bloqueInvalido = true;
+                        errores.add("PARTIDA en linea " + numeroLinea + " tiene " + partes.length
+                                + " campos (se esperaban 4)");
+                        continue;
+                    }
+
+                    String codigo = partes[1].trim();
+                    String tipoTexto = normalizarTexto(partes[2]);
+                    String tipo = null;
+                    if (tipoTexto.equals("debito")) {
+                        tipo = "Debito";
+                    } else if (tipoTexto.equals("credito")) {
+                        tipo = "Credito";
+                    } else {
+                        bloqueInvalido = true;
+                        errores.add("tipo de partida invalido ('" + partes[2].trim() + "') en linea " + numeroLinea);
+                        continue;
+                    }
+
+                    if (codigo.isEmpty()) {
+                        bloqueInvalido = true;
+                        errores.add("codigo de cuenta vacio en linea " + numeroLinea);
+                        continue;
+                    }
+                    if (!existeCuenta(codigo)) {
+                        bloqueInvalido = true;
+                        errores.add("la cuenta " + codigo + " no existe en el catalogo (linea " + numeroLinea + ")");
+                        continue;
+                    }
+
+                    double monto;
+                    try {
+                        monto = Double.parseDouble(partes[3].trim());
+                        if (!Double.isFinite(monto) || monto <= 0) throw new NumberFormatException();
+                    } catch (NumberFormatException e) {
+                        bloqueInvalido = true;
+                        errores.add("monto invalido ('" + partes[3].trim() + "') en linea " + numeroLinea);
+                        continue;
+                    }
+
+                    cods.add(codigo);
+                    tips.add(tipo);
+                    mons.add(monto);
+                } else {
+                    advertir(archivo, numeroLinea, "linea desconocida. Linea omitida.");
+                    huboDescarte = true;
+                }
+            }
+
+            if (enAsiento) {
+                if (agregarAsientoCargado(archivo, lineaAsiento, fecha, descripcion, totalTexto,
+                        cods, tips, mons, bloqueInvalido, errores, avisos)) {
+                    validos++;
+                } else {
+                    omitidos++;
+                    huboDescarte = true;
                 }
             }
         } catch (IOException e) {
             System.out.println("Error leyendo " + archivo + ": " + e.getMessage());
+            return;
         }
+
+        if (huboDescarte) {
+            System.out.println("Carga de asientos: " + validos + " validos, " + omitidos + " omitidos.");
+            System.out.println("ADVERTENCIA: " + archivo + " contiene asientos o lineas invalidas.");
+            System.out.println("Se cargaron solo los asientos validos.");
+            if (!respaldarArchivoInvalido(archivo, "asientos_invalidos")) {
+                bloquearGuardadoAsientos = true;
+                System.out.println("El archivo " + archivo + " no se sobrescribira y no se podran registrar asientos hasta corregirlo.");
+            }
+        }
+    }
+
+    static boolean agregarAsientoCargado(String archivo, int linea, String fecha, String descripcion,
+            String totalTexto, List<String> cods, List<String> tips, List<Double> mons,
+            boolean bloqueInvalido, List<String> errores, List<String> avisos) {
+        if (bloqueInvalido) {
+            for (String error : errores) {
+                advertir(archivo, linea, error + ". Asiento omitido.");
+            }
+            return false;
+        }
+
+        String fechaNormalizada = null;
+        if (fecha == null || fecha.isEmpty()) {
+            errores.add("fecha vacia");
+        } else {
+            LocalDate f = parsearFecha(fecha);
+            if (f == null) {
+                errores.add("fecha invalida ('" + fecha + "')");
+            } else if (f.getYear() < 1900 || f.getYear() > 2100) {
+                errores.add("ano fuera de rango ('" + fecha + "')");
+            } else {
+                fechaNormalizada = f.format(FORMATO_FECHA);
+            }
+        }
+
+        if (descripcion == null || descripcion.isEmpty()) {
+            errores.add("descripcion vacia");
+        }
+
+        int cantidadPartidas = cods == null ? 0 : cods.size();
+        if (cantidadPartidas < 2) {
+            errores.add("tiene " + cantidadPartidas + (cantidadPartidas == 1 ? " partida" : " partidas")
+                    + " (minimo 2)");
+        }
+
+        double totalDebe = 0;
+        double totalHaber = 0;
+        if (cantidadPartidas >= 2) {
+            for (int i = 0; i < cods.size(); i++) {
+                if (tips.get(i).equalsIgnoreCase("Debito")) {
+                    totalDebe += mons.get(i);
+                } else {
+                    totalHaber += mons.get(i);
+                }
+            }
+            if (!Double.isFinite(totalDebe) || !Double.isFinite(totalHaber)) {
+                errores.add("la suma de las partidas no es un numero finito");
+            } else if (Math.abs(totalDebe - totalHaber) > 0.01) {
+                errores.add(String.format("no cuadra: Debe %.2f, Haber %.2f", totalDebe, totalHaber));
+            }
+
+            double totalEncabezado = 0;
+            boolean encabezadoValido = false;
+            if (totalTexto != null) {
+                try {
+                    totalEncabezado = Double.parseDouble(totalTexto);
+                    if (Double.isFinite(totalEncabezado) && totalEncabezado > 0) {
+                        encabezadoValido = true;
+                    }
+                } catch (NumberFormatException e) {
+                    // Se avisa abajo.
+                }
+            }
+            if (!encabezadoValido) {
+                avisos.add("total del encabezado invalido ('" + totalTexto + "'); se usara el calculado");
+            } else if (Math.abs(totalEncabezado - totalDebe) > 0.01) {
+                avisos.add(String.format("total del encabezado %.2f no coincide con las partidas %.2f; se usara el calculado",
+                        totalEncabezado, totalDebe));
+            }
+        }
+
+        if (!errores.isEmpty()) {
+            for (String error : errores) {
+                advertir(archivo, linea, error + ". Asiento omitido.");
+            }
+            for (String aviso : avisos) {
+                advertir(archivo, linea, aviso);
+            }
+            return false;
+        }
+
+        for (String aviso : avisos) {
+            advertir(archivo, linea, aviso);
+        }
+
+        asientoFechas.add(fechaNormalizada);
+        asientoDescripciones.add(descripcion);
+        asientoTotales.add(totalDebe);
+        partidaCodigos.add(cods);
+        partidaTipos.add(tips);
+        partidaMontos.add(mons);
+        return true;
     }
 
     static void mostrarCuentas() {
@@ -475,6 +708,12 @@ public class Contabilidad {
     }
 
     static void registrarAsiento() {
+        if (bloquearGuardadoAsientos) {
+            System.out.println("No se pueden registrar asientos hasta corregir "
+                    + ARCHIVO_ASIENTOS + " y reiniciar el programa.");
+            return;
+        }
+
         System.out.println("\n--- REGISTRAR ASIENTO ---");
         System.out.println("Se pediran fecha, descripcion y al menos dos partidas.");
         System.out.println("Cada partida tiene: cuenta, lado (Debe/Haber) y monto.");
@@ -484,6 +723,7 @@ public class Contabilidad {
         List<String> cods = new ArrayList<>();
         List<String> tips = new ArrayList<>();
         List<Double> mons = new ArrayList<>();
+        List<Double> saldosSimulados = new ArrayList<>(cuentaSaldos);
         double totalDebito = 0;
         double totalCredito = 0;
 
@@ -496,6 +736,30 @@ public class Contabilidad {
 
             String tipo = pedirTipoPartida();
             double monto = leerDouble("  Monto (ej: 1500,00): ");
+
+            int idxCuenta = indiceCuenta(codigo);
+            String tipoCuenta = cuentaTipos.get(idxCuenta);
+            double saldoActual = saldosSimulados.get(idxCuenta);
+            double nuevoSaldo = saldoActual + efectoSaldo(tipoCuenta, tipo, monto);
+            if (saldoActual >= -0.005 && nuevoSaldo < -0.005) {
+                boolean normalDeudor = tipoCuenta.equals("Activo")
+                        || tipoCuenta.equals("Costo") || tipoCuenta.equals("Gasto");
+                System.out.println();
+                System.out.println("ADVERTENCIA: la cuenta quedaria con saldo en el lado contrario al normal.");
+                System.out.printf("  Cuenta: %s - %s (%s)%n",
+                        codigo, cuentaNombres.get(idxCuenta), tipoCuenta);
+                System.out.printf("  Saldo actual: %.2f%n", saldoActual);
+                System.out.printf("  Partida: %s %.2f%n", etiquetaLado(tipo), monto);
+                System.out.printf("  Saldo resultante: %.2f%n", nuevoSaldo);
+                System.out.println("  Una cuenta de tipo " + tipoCuenta + " normalmente tiene saldo "
+                        + (normalDeudor ? "deudor" : "acreedor") + ".");
+                if (!confirmar("  Desea continuar? (S/N): ")) {
+                    System.out.println("Partida descartada. Ingrese nuevamente la partida " + (cods.size() + 1) + ".");
+                    continue;
+                }
+            }
+            saldosSimulados.set(idxCuenta, nuevoSaldo);
+
             cods.add(codigo);
             tips.add(tipo);
             mons.add(monto);
@@ -610,6 +874,24 @@ public class Contabilidad {
         }
     }
 
+    static void advertirSaldosContrarios() {
+        boolean hay = false;
+        for (int i = 0; i < cuentaCodigos.size(); i++) {
+            double saldo = cuentaSaldos.get(i);
+            if (saldo < -0.005) {
+                if (!hay) {
+                    System.out.println("\nAVISO: cuentas con saldo en el lado contrario a su tipo:");
+                    hay = true;
+                }
+                System.out.printf("  %s - %s (%s): %.2f%n",
+                        cuentaCodigos.get(i), cuentaNombres.get(i), cuentaTipos.get(i), saldo);
+            }
+        }
+        if (hay) {
+            System.out.println("Verifique si son cuentas de naturaleza contraria o errores de registro.");
+        }
+    }
+
     static String fechaActual() {
         return LocalDate.now().format(FORMATO_FECHA);
     }
@@ -626,16 +908,23 @@ public class Contabilidad {
     }
 
     static String convertirFecha(String entrada) {
-        try {
-            LocalDate fecha = LocalDate.parse(entrada,
-                    DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT));
-            if (fecha.getYear() < 1900 || fecha.getYear() > 2100) {
-                System.out.println("Ano invalido. Debe estar entre 1900 y 2100.");
-                return null;
-            }
-            return fecha.format(FORMATO_FECHA);
-        } catch (DateTimeParseException e) {
+        LocalDate fecha = parsearFecha(entrada);
+        if (fecha == null) {
             System.out.println("Fecha invalida. Use dd/MM/yyyy y una fecha real.");
+            return null;
+        }
+        if (fecha.getYear() < 1900 || fecha.getYear() > 2100) {
+            System.out.println("Ano invalido. Debe estar entre 1900 y 2100.");
+            return null;
+        }
+        return fecha.format(FORMATO_FECHA);
+    }
+
+    static LocalDate parsearFecha(String entrada) {
+        if (entrada == null) return null;
+        try {
+            return LocalDate.parse(entrada.trim(), FORMATO_FECHA_ESTRICTA);
+        } catch (DateTimeParseException e) {
             return null;
         }
     }
@@ -783,15 +1072,49 @@ public class Contabilidad {
         }
         ordenarIndicesPorFecha(indices);
 
-        System.out.printf("%-5s %-20s %-30s %12s%n", "No.", "Fecha", "Descripcion", "Total");
-        System.out.println("-".repeat(75));
+        double totalGeneralDebe = 0;
+        double totalGeneralHaber = 0;
         for (int k = 0; k < indices.size(); k++) {
             int i = indices.get(k);
-            System.out.printf("%-5d %-20s %-30s %12.2f%n",
-                    i + 1, asientoFechas.get(i), asientoDescripciones.get(i), asientoTotales.get(i));
+            List<String> cods = partidaCodigos.get(i);
+            List<String> tips = partidaTipos.get(i);
+            List<Double> mons = partidaMontos.get(i);
+
+            double totalDebe = 0;
+            double totalHaber = 0;
+            for (int j = 0; j < mons.size(); j++) {
+                if (tips.get(j).equalsIgnoreCase("Debito")) {
+                    totalDebe += mons.get(j);
+                } else {
+                    totalHaber += mons.get(j);
+                }
+            }
+            totalGeneralDebe += totalDebe;
+            totalGeneralHaber += totalHaber;
+
+            System.out.println("Asiento #" + (i + 1) + "   Fecha: " + asientoFechas.get(i));
+            System.out.println("Descripcion: " + asientoDescripciones.get(i));
+            mostrarPartidasDebeHaber(cods, tips, mons);
+            System.out.println("-".repeat(67));
+            System.out.printf("  %-39s %12.2f %12.2f%n", "TOTALES", totalDebe, totalHaber);
+            System.out.println();
         }
-        System.out.println("-".repeat(75));
-        System.out.printf("Total de asientos: %d%n", indices.size());
+
+        System.out.println("-".repeat(67));
+        System.out.printf("  %-39s %12.2f %12.2f%n",
+                "TOTAL GENERAL", totalGeneralDebe, totalGeneralHaber);
+        System.out.println("Total de asientos: " + indices.size());
+    }
+
+    static void mostrarPartidasDebeHaber(List<String> cods, List<String> tips, List<Double> mons) {
+        System.out.printf("  %-6s %-32s %12s %12s%n", "Codigo", "Cuenta", "Debe", "Haber");
+        for (int j = 0; j < cods.size(); j++) {
+            double monto = mons.get(j);
+            boolean debito = tips.get(j).equalsIgnoreCase("Debito");
+            System.out.printf("  %-6s %-32s %12.2f %12.2f%n",
+                    cods.get(j), recortar(nombreCuenta(cods.get(j)), 32),
+                    debito ? monto : 0, debito ? 0 : monto);
+        }
     }
 
     static void verLibroMayor() {
@@ -951,6 +1274,15 @@ public class Contabilidad {
             saldo = 0;
         }
         System.out.printf("%63s SALDO: %.2f (%s)%n", "", Math.abs(saldo), etiqueta);
+
+        String tipoCuenta = cuentaTipos.get(idxCuenta);
+        boolean normalDeudor = tipoCuenta.equals("Activo")
+                || tipoCuenta.equals("Costo") || tipoCuenta.equals("Gasto");
+        boolean ladoContrario = (normalDeudor && saldo < -0.005) || (!normalDeudor && saldo > 0.005);
+        if (ladoContrario) {
+            System.out.println("  AVISO: saldo en el lado contrario al normal para una cuenta de tipo "
+                    + tipoCuenta + ".");
+        }
         System.out.println("=".repeat(95));
     }
 
@@ -965,6 +1297,7 @@ public class Contabilidad {
         System.out.println("Historico completo");
         System.out.printf("%-8s %-35s %12s%n", "Codigo", "Nombre", "Saldo");
         System.out.println("-".repeat(60));
+        saldoContrarioEnReporte = false;
 
         double totalIngresos = mostrarSeccion("Ingreso", "INGRESOS", cuentaSaldos);
         double totalCostos = mostrarSeccion("Costo", "COSTOS", cuentaSaldos);
@@ -976,6 +1309,7 @@ public class Contabilidad {
         System.out.println("\n" + "-".repeat(60));
         System.out.printf("Utilidad bruta:  %.2f%n", utilidadBruta);
         System.out.printf("Utilidad neta:   %.2f%n", utilidadNeta);
+        mostrarNotaSaldosContrarios();
     }
 
     static void generarBalance() {
@@ -983,6 +1317,7 @@ public class Contabilidad {
         System.out.println("Balance al " + fechaActual());
         System.out.printf("%-8s %-35s %12s%n", "Codigo", "Nombre", "Saldo");
         System.out.println("-".repeat(60));
+        saldoContrarioEnReporte = false;
 
         double totalActivo = mostrarSeccion("Activo", "ACTIVO", cuentaSaldos);
         double totalPasivo = mostrarSeccion("Pasivo", "PASIVO", cuentaSaldos);
@@ -1003,6 +1338,7 @@ public class Contabilidad {
         } else {
             System.out.println("ADVERTENCIA: El balance NO cuadra.");
         }
+        mostrarNotaSaldosContrarios();
 
         guardarBalance(fechaActual(), totalActivo, totalPasivo, patrimonioConResultado);
     }
@@ -1012,13 +1348,26 @@ public class Contabilidad {
         double total = 0;
         for (int i = 0; i < cuentaCodigos.size(); i++) {
             if (cuentaTipos.get(i).equals(tipo)) {
-                System.out.printf("%-8s %-35s %12.2f%n",
-                        cuentaCodigos.get(i), cuentaNombres.get(i), saldos.get(i));
-                total += saldos.get(i);
+                double saldo = saldos.get(i);
+                String marca = "";
+                if (saldo < -0.005) {
+                    marca = " *";
+                    saldoContrarioEnReporte = true;
+                }
+                System.out.printf("%-8s %-35s %12.2f%s%n",
+                        cuentaCodigos.get(i), cuentaNombres.get(i), saldo, marca);
+                total += saldo;
             }
         }
         System.out.printf("%-44s %12.2f%n", "TOTAL " + titulo + ":", total);
         return total;
+    }
+
+    static void mostrarNotaSaldosContrarios() {
+        if (saldoContrarioEnReporte) {
+            System.out.println("\n* Saldo en el lado contrario al normal. Verifique si es una cuenta");
+            System.out.println("  de naturaleza contraria o un error de registro.");
+        }
     }
 
     static double totalPorTipo(List<Double> saldos, String tipo) {
@@ -1339,8 +1688,12 @@ public class Contabilidad {
 
     static void salir() {
         System.out.println("\nGuardando datos y saliendo...");
-        guardarAsientos();
-        guardarCuentas();
+        if (bloquearGuardadoAsientos) {
+            System.out.println("No se guardaron cambios: corrija " + ARCHIVO_ASIENTOS + " y reinicie el programa.");
+        } else {
+            guardarAsientos();
+            guardarCuentas();
+        }
         System.out.println("Hasta luego.");
     }
 }

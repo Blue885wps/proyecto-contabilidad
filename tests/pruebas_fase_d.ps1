@@ -120,6 +120,8 @@ try {
     Assert-Contains $out "Asiento cancelado. No se guardo nada." "asiento cancelado"
     Assert-Contains $out "CUENTA T: 1000 - Caja (Activo)" "cuenta T"
     Assert-Contains $out "Total de asientos: 6" "libro diario"
+    Assert-Contains $out "Codigo Cuenta" "libro diario detallado"
+    Assert-Contains $out "TOTAL GENERAL" "total general del libro diario"
     Assert-Contains $out "CUENTA: 1000 - Caja" "libro mayor"
     Assert-Contains $out "LA BALANZA DE COMPROBACION ESTA CUADRADA." "balanza cuadrada"
     Assert-Contains $out "Utilidad neta:" "estado de resultados"
@@ -177,6 +179,120 @@ try {
     $input2 = Write-Input $dir "input2.txt" @("4", "11")
     $out2 = Invoke-App $dir $input2
     Assert-Contains $out2 "Total de asientos: 6" "persistencia de asientos"
+
+    # ------------------------------------------------------------------
+    # Validacion de asientos invalidos al cargar
+    # ------------------------------------------------------------------
+    $dirInvalid = New-TestDir "invalidos"
+    $cuentasInvalidas = @(
+        "1000|Caja|Activo|0.0",
+        "4010|Ventas|Ingreso|0.0",
+        "1001||Activo|0.0"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $dirInvalid "data\cuentas.txt") ($cuentasInvalidas + "`r`n")
+
+    $asientosInvalidos = @(
+        "ASIENTO|31/02/2026|Fecha invalida|100.0",
+        "PARTIDA|1000|Debito|100.0",
+        "PARTIDA|4010|Credito|100.0",
+        "ASIENTO|01/01/2026|Descuadrado|100.0",
+        "PARTIDA|1000|Debito|100.0",
+        "PARTIDA|4010|Credito|50.0",
+        "ASIENTO|01/01/2026|Cuenta inexistente|100.0",
+        "PARTIDA|9999|Debito|100.0",
+        "PARTIDA|4010|Credito|100.0",
+        "ASIENTO|01/01/2026|Una partida|100.0",
+        "PARTIDA|1000|Debito|100.0",
+        "ASIENTO|01/01/2026|Valido|100.0",
+        "PARTIDA|1000|Debito|100.0",
+        "PARTIDA|4010|Credito|100.0"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $dirInvalid "data\asientos.txt") ($asientosInvalidos + "`r`n")
+
+    $inputInvalid = Write-Input $dirInvalid "input.txt" @("4", "11")
+    $outInvalid = Invoke-App $dirInvalid $inputInvalid
+
+    Assert-Contains $outInvalid "nombre de cuenta vacio" "cuenta con nombre vacio rechazada"
+    Assert-Contains $outInvalid "fecha invalida" "asiento con fecha invalida rechazado"
+    Assert-Contains $outInvalid "no cuadra" "asiento descuadrado rechazado"
+    Assert-Contains $outInvalid "la cuenta 9999 no existe" "asiento con cuenta inexistente rechazado"
+    Assert-Contains $outInvalid "minimo 2" "asiento con una partida rechazado"
+    Assert-Contains $outInvalid "Carga de asientos: 1 validos, 4 omitidos." "resumen de asientos omitidos"
+    Assert-Contains $outInvalid "Valido" "asiento valido conservado"
+    Assert-Contains $outInvalid "TOTAL GENERAL" "libro diario de asientos validos"
+
+    $respaldoAsientos = Get-ChildItem (Join-Path $dirInvalid "backup") -File -Filter "asientos_invalidos_*.txt" | Select-Object -First 1
+    if ($null -eq $respaldoAsientos) {
+        throw "FALLO: no se creo el respaldo de asientos invalidos"
+    }
+    $contenidoRespaldo = Get-Content $respaldoAsientos.FullName -Raw
+    if (-not $contenidoRespaldo.Contains("Fecha invalida") -or -not $contenidoRespaldo.Contains("Cuenta inexistente")) {
+        throw "FALLO: el respaldo no conserva los asientos originales"
+    }
+    Write-Host "OK: respaldo de asientos invalidos"
+
+    $cantidadAsientosInvalidos = (Get-Content (Join-Path $dirInvalid "data\asientos.txt") | Select-String -Pattern "^ASIENTO").Count
+    if ($cantidadAsientosInvalidos -ne 1) {
+        throw "FALLO: se esperaba 1 asiento valido y hay $cantidadAsientosInvalidos"
+    }
+    Write-Host "OK: asientos invalidos omitidos y archivo limpio"
+
+    # ------------------------------------------------------------------
+    # Advertencia por saldo en el lado contrario
+    # ------------------------------------------------------------------
+    $dirSaldo = New-TestDir "saldo"
+    $cuentasSaldo = @(
+        "1100|Bancos|Activo|0.0",
+        "1300|Inventarios|Activo|0.0",
+        "3000|Capital social|Patrimonio|0.0"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $dirSaldo "data\cuentas.txt") ($cuentasSaldo + "`r`n")
+
+    $asientosSaldo = @(
+        "ASIENTO|01/01/2026|Aporte de capital|10000.0",
+        "PARTIDA|1100|Debito|10000.0",
+        "PARTIDA|3000|Credito|10000.0",
+        "ASIENTO|02/01/2026|Compra de mercaderia|2000.0",
+        "PARTIDA|1300|Debito|2000.0",
+        "PARTIDA|1100|Credito|2000.0"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $dirSaldo "data\asientos.txt") ($asientosSaldo + "`r`n")
+
+    $inputRechazo = Write-Input $dirSaldo "input_rechazo.txt" @(
+        "2", "", "Venta rechazada", "1300", "2", "65000", "N", "0", "11"
+    )
+    $outRechazo = Invoke-App $dirSaldo $inputRechazo
+    Assert-Contains $outRechazo "la cuenta quedaria con saldo en el lado contrario al normal" "advertencia de saldo contrario"
+    Assert-Contains $outRechazo "Partida descartada." "partida descartada por saldo contrario"
+    Assert-Contains $outRechazo "Asiento cancelado." "asiento cancelado tras rechazo"
+    $cantidadTrasRechazo = (Get-Content (Join-Path $dirSaldo "data\asientos.txt") | Select-String -Pattern "^ASIENTO").Count
+    if ($cantidadTrasRechazo -ne 2) {
+        throw "FALLO: el asiento rechazado se guardo. Hay $cantidadTrasRechazo asientos."
+    }
+    Write-Host "OK: asiento con saldo contrario rechazado"
+
+    $inputAcepta = Write-Input $dirSaldo "input_acepta.txt" @(
+        "2", "", "Venta aceptada", "1300", "2", "65000", "S",
+        "1100", "1", "65000", "N", "S", "11"
+    )
+    $outAcepta = Invoke-App $dirSaldo $inputAcepta
+    Assert-Contains $outAcepta "Desea continuar? (S/N):" "confirmacion de saldo contrario"
+    Assert-Contains $outAcepta "Asiento registrado exitosamente." "asiento aceptado con saldo contrario"
+    $cantidadTrasAceptar = (Get-Content (Join-Path $dirSaldo "data\asientos.txt") | Select-String -Pattern "^ASIENTO").Count
+    if ($cantidadTrasAceptar -ne 3) {
+        throw "FALLO: se esperaban 3 asientos y hay $cantidadTrasAceptar"
+    }
+    Write-Host "OK: asiento con saldo contrario confirmado"
+
+    $inputReportes = Write-Input $dirSaldo "input_reportes.txt" @(
+        "3", "1", "1300", "0", "8", "11"
+    )
+    $outReportes = Invoke-App $dirSaldo $inputReportes
+    Assert-Contains $outReportes "AVISO: cuentas con saldo en el lado contrario a su tipo:" "aviso de saldo contrario al iniciar"
+    Assert-Contains $outReportes "1300 - Inventarios (Activo)" "cuenta con saldo contrario listada"
+    Assert-Contains $outReportes "lado contrario al normal para una cuenta de tipo Activo" "nota en cuenta T"
+    Assert-Contains $outReportes "Saldo en el lado contrario al normal" "nota en balance general"
+    Write-Host "OK: reportes marcan el saldo contrario"
 
     Write-Host ""
     Write-Host "TODAS LAS PRUEBAS PASARON."

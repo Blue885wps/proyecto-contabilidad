@@ -116,11 +116,31 @@ confirmar con `S/N`. Si se rechaza, el asiento no se guarda.
 Las descripciones, nombres y codigos no pueden contener el caracter `|`. Los
 codigos `0` y `?` estan reservados para cancelar y ver el catalogo.
 
+## Saldos en el lado contrario
+
+Antes de aceptar cada partida, el programa calcula como quedaria el saldo de la
+cuenta. Si la cuenta pasa de su lado normal al lado contrario, muestra una
+advertencia con el saldo actual, la partida y el saldo resultante, y pide
+confirmacion `S/N`.
+
+Por ejemplo, si Inventarios tiene 2,000 en el Debe y se registra un credito de
+65,000, el programa avisa que la cuenta quedaria con saldo de -63,000. Si se
+confirma, la cuenta T y el Balance General marcan el saldo con un aviso.
+
+Esto no bloquea automaticamente las cuentas de naturaleza contraria, como
+`1790 Depreciacion acumulada` o `1890 Amortizacion acumulada`, que pueden tener
+saldo negativo de forma legitima. Al iniciar, el programa tambien avisa si
+alguna cuenta quedo con saldo en el lado contrario.
+
 ## Cuentas T
 
 La opcion 3 muestra cada cuenta en dos columnas, **Debe** y **Haber**, con fecha,
 concepto y monto de cada movimiento. Al final presenta los totales de cada lado
 y el saldo de la cuenta (Deudor, Acreedor o Cero).
+
+Si el saldo queda en el lado contrario al normal para el tipo de cuenta (por
+ejemplo, un activo con saldo acreedor), la cuenta T muestra un aviso. Puede ser
+una cuenta de naturaleza contraria o un error de registro.
 
 Se puede consultar una cuenta, solo las cuentas con movimientos o el catalogo
 completo.
@@ -130,7 +150,9 @@ completo.
 Todos los reportes usan el historico completo de asientos; no hay periodo
 configurable.
 
-- **Libro diario (4):** asientos ordenados por fecha, con su numero original.
+- **Libro diario (4):** cada asiento con fecha, descripcion, cuentas, columnas
+  de Debe y Haber, y totales. Los asientos se ordenan por fecha y conservan su
+  numero original. Al final se muestra el total general de Debe y Haber.
 - **Libro mayor (5):** movimientos de una cuenta ordenados por fecha y saldo
   acumulado.
 - **Balanza de comprobacion (6):** debitos, creditos y saldo por cuenta; verifica
@@ -145,8 +167,14 @@ El balance general guarda la fecha de generacion en `data/balance.txt`.
 ## Respaldos
 
 La opcion 10 crea una copia manual en `backup/manual_YYYYMMDD_HHmmss_SSS/` con
-los archivos de datos que existan. No hay respaldos automaticos ni restauracion
-desde el programa.
+los archivos de datos que existan. No hay respaldos automaticos periodicos ni
+restauracion desde el programa.
+
+Si al iniciar se detectan lineas invalidas en `cuentas.txt` o asientos invalidos
+en `asientos.txt`, se guarda una copia del archivo original como
+`backup/cuentas_invalidas_....txt` o `backup/asientos_invalidos_....txt`. Si no
+se puede crear la copia de `asientos.txt`, el programa conserva el archivo y no
+permite registrar asientos hasta corregirlo.
 
 Para recuperar un respaldo, cierre el programa y copie manualmente
 `cuentas.txt`, `asientos.txt` y `balance.txt` desde la carpeta del respaldo
@@ -163,6 +191,12 @@ data/
 
 - `asientos.txt` es la fuente de verdad; los saldos se recalculan desde ahi al
   iniciar.
+- Al iniciar, `asientos.txt` se valida: fecha real, al menos dos partidas,
+  cuentas existentes, montos validos y Debe = Haber. Si un asiento es invalido,
+  se omite completo y se informa el motivo.
+- `cuentas.txt` exige codigo y nombre no vacios, tipo valido y saldo numerico.
+- Si se omiten cuentas o asientos invalidos, el programa guarda una copia del
+  archivo original en `backup/` antes de reescribirlo.
 - No edite `cuentas.txt` ni `balance.txt` a mano salvo que sepa lo que hace.
 - Si edita los archivos con el programa abierto, los cambios no se recargan:
   el proximo guardado sobrescribira esas ediciones.
@@ -170,7 +204,9 @@ data/
 ## Pruebas
 
 El script `tests/pruebas_fase_d.ps1` compila el proyecto y ejecuta pruebas sobre
-copias temporales de los datos. No toca `data/` ni `backup/` reales.
+copias temporales de los datos. No toca `data/` ni `backup/` reales. Incluye
+pruebas del libro diario detallado, la carga de asientos invalidos y la
+advertencia por saldo en el lado contrario.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tests/pruebas_fase_d.ps1
