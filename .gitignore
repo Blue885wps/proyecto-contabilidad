@@ -4,6 +4,7 @@
 # Archivos que si forman parte del proyecto
 !.gitignore
 !README.md
+!AGENTS.md
 !src/
 !src/Contabilidad.java
 !tests/

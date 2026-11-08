@@ -47,13 +47,18 @@ public class Contabilidad {
     static boolean verHistorico = false;
     static boolean bloquearGuardadoAsientos = false;
     static boolean bloquearGuardadoCuentas = false;
+    static boolean bloqueoPorCatalogo = false;
+    static int asientosEnArchivo = 0;
     static boolean saldoContrarioEnReporte = false;
+    static boolean entradaCerrada = false;
     public static void main(String[] args) {
         System.out.println("=== SISTEMA CONTABLE EMPRESARIAL ===");
         cargarDatos();
         while (true) {
             mostrarMenu();
-            switch (leerInt("Seleccione una opcion (0-12): ", 0, 12)) {
+            int opcion = leerInt("Seleccione una opcion (0-12): ", 0, 12);
+            if (entradaCerrada) { salir(); return; }
+            switch (opcion) {
                 case 1: menuAdministrarCuentas(); break;
                 case 2: registrarAsiento(); break;
                 case 3: menuConsultarCuentasT(); break;
@@ -120,16 +125,21 @@ public class Contabilidad {
     }
     static void menuAdministrarCuentas() {
         while (true) {
-            switch (menu("ADMINISTRAR CUENTAS", "Ver catalogo", "Crear cuenta", "Buscar cuenta")) {
+            int opcion = menu("ADMINISTRAR CUENTAS", "Ver catalogo", "Crear cuenta", "Buscar cuenta",
+                    "Reconstruir catalogo estandar");
+            if (entradaCerrada) return;
+            switch (opcion) {
                 case 1: mostrarCuentas(); break; case 2: crearCuenta(); break;
-                case 3: buscarCuenta(); break; case 0: return;
+                case 3: buscarCuenta(); break; case 4: reconstruirCatalogo(); break; case 0: return;
             }
         }
     }
     static void menuConsultarCuentasT() {
         while (true) {
-            switch (menu("CONSULTAR CUENTAS T", "Consultar una cuenta",
-                    "Cuentas con movimientos", "Cuentas T de todo el catalogo")) {
+            int opcion = menu("CONSULTAR CUENTAS T", "Consultar una cuenta",
+                    "Cuentas con movimientos", "Cuentas T de todo el catalogo");
+            if (entradaCerrada) return;
+            switch (opcion) {
                 case 1: verCuentaTIndividual(); break; case 2: verCuentasTConMovimientos(); break;
                 case 3: verTodasCuentasT(); break; case 0: return;
             }
@@ -137,15 +147,19 @@ public class Contabilidad {
     }
     static void menuConsultarMovimientos() {
         while (true) {
-            switch (menu("CONSULTAR MOVIMIENTOS", "Ver asientos registrados", "Buscar asientos")) {
+            int opcion = menu("CONSULTAR MOVIMIENTOS", "Ver asientos registrados", "Buscar asientos");
+            if (entradaCerrada) return;
+            switch (opcion) {
                 case 1: mostrarAsientos(); break; case 2: buscarAsientos(); break; case 0: return;
             }
         }
     }
     static void menuPeriodos() {
         while (true) {
-            switch (menu("PERIODOS CONTABLES", "Ver periodo actual", "Configurar periodo",
-                    "Cerrar periodo y trasladar resultado", "Reportes: periodo actual / historico")) {
+            int opcion = menu("PERIODOS CONTABLES", "Ver periodo actual", "Configurar periodo",
+                    "Cerrar periodo y trasladar resultado", "Reportes: periodo actual / historico");
+            if (entradaCerrada) return;
+            switch (opcion) {
                 case 1: verPeriodoActual(); break;
                 case 2: configurarPeriodo(); break;
                 case 3: cerrarPeriodo(); break;
@@ -167,8 +181,10 @@ public class Contabilidad {
         System.out.println("\n--- CONFIGURAR PERIODO CONTABLE ---");
         System.out.println("Periodo actual: " + periodoInicio + " al " + periodoFin);
         String inicio = leerFecha("Nueva fecha de inicio"), fin;
+        if (inicio == null) { System.out.println("No se cambio el periodo."); return; }
         while (true) {
             fin = leerFecha("Nueva fecha de fin");
+            if (fin == null) { System.out.println("No se cambio el periodo."); return; }
             if (fechaOrdenable(fin).compareTo(fechaOrdenable(inicio)) >= 0) break;
             System.out.println("La fecha de fin no puede ser anterior al inicio.");
         }
@@ -326,6 +342,7 @@ public class Contabilidad {
         } else if (cuentaCodigos.isEmpty()) {
             if (new File(ARCHIVO_CUENTAS).exists()) {
                 linea("ADVERTENCIA: " + ARCHIVO_CUENTAS + " existe pero no tiene cuentas validas.",
+                        "Use la opcion 1.4 (Reconstruir catalogo estandar) para volver a cargar las 75 cuentas.",
                         "No se inicializara el catalogo para no sobrescribir el archivo.");
                 bloquearGuardadoCuentas = true;
             } else {
@@ -334,9 +351,84 @@ public class Contabilidad {
             }
         }
         if (!cargarAsientosTexto(ARCHIVO_ASIENTOS)) bloquearGuardadoAsientos = true;
+        else if (bloquearGuardadoCuentas && asientosEnArchivo > 0) {
+            bloqueoPorCatalogo = true;
+            System.out.println("ADVERTENCIA: no se sobrescribira " + ARCHIVO_ASIENTOS
+                    + " hasta reconstruir el catalogo de cuentas (opcion 1.4), para no perder los asientos originales.");
+        }
         cargarPeriodo();
         recalcularSaldos();
         advertirSaldosContrarios();
+    }
+    static List<String> codigosCatalogoEstandar() {
+        List<String> codigos = new ArrayList<>();
+        for (String grupo : CATALOGO_ESTANDAR)
+            for (String linea : grupo.split(";")) codigos.add(linea.split("\\|")[0].trim());
+        return codigos;
+    }
+    static List<String> codigosUsadosNoEstandar() {
+        List<String> huerfanos = new ArrayList<>();
+        List<String> estandar = codigosCatalogoEstandar();
+        File file = new File(ARCHIVO_ASIENTOS);
+        if (!file.exists()) return huerfanos;
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String linea;
+            while ((linea = reader.readLine()) != null) {
+                if (linea.startsWith("\uFEFF")) linea = linea.substring(1);
+                String[] partes = linea.split("\\|", -1);
+                if (partes.length < 4 || !partes[0].trim().equals("PARTIDA")) continue;
+                String codigo = partes[1].trim();
+                if (!codigo.isEmpty() && !estandar.contains(codigo) && !huerfanos.contains(codigo)) huerfanos.add(codigo);
+            }
+        } catch (IOException e) {
+            System.out.println("ADVERTENCIA: no se pudo revisar " + ARCHIVO_ASIENTOS + ": " + e.getMessage());
+            huerfanos.add("(no se pudo revisar " + ARCHIVO_ASIENTOS + ")");
+        }
+        return huerfanos;
+    }
+    static void reconstruirCatalogo() {
+        System.out.println("\n--- RECONSTRUIR CATALOGO ESTANDAR ---");
+        List<String> huerfanos = codigosUsadosNoEstandar();
+        if (!huerfanos.isEmpty()) {
+            linea("No se puede reconstruir el catalogo: hay asientos que usan cuentas ajenas al catalogo estandar.",
+                    "Cuentas afectadas: " + String.join(", ", huerfanos),
+                    "Corrija o elimine esos asientos antes de continuar.");
+            return;
+        }
+        if (!cuentaCodigos.isEmpty()) {
+            linea("Esta accion reemplaza el catalogo actual (" + cuentaCodigos.size() + " cuentas) por las 75 cuentas estandar.",
+                    "Se perderan las cuentas personalizadas y sus saldos.",
+                    "Se guardara una copia del archivo actual en la carpeta backup/.");
+            if (!confirmar("Desea continuar? (S/N): ")) { System.out.println("Operacion cancelada."); return; }
+        } else {
+            System.out.println("El catalogo esta vacio o no tiene cuentas validas. Se creara el catalogo estandar de 75 cuentas.");
+        }
+        if (!respaldarArchivoInvalido(ARCHIVO_CUENTAS, "cuentas_antes_reconstruir")) {
+            System.out.println("No se pudo guardar la copia de seguridad. No se reconstruyo el catalogo.");
+            return;
+        }
+        boolean estabaBloqueado = bloquearGuardadoCuentas;
+        bloquearGuardadoCuentas = false;
+        cuentaCodigos.clear(); cuentaNombres.clear(); cuentaTipos.clear(); cuentaSaldos.clear();
+        for (String grupo : CATALOGO_ESTANDAR)
+            for (String linea : grupo.split(";")) {
+                String[] partes = linea.split("\\|");
+                agregarCuenta(partes[0], partes[1], partes[2]);
+            }
+        if (!guardarCuentas()) {
+            System.out.println("No se pudo guardar el catalogo reconstruido. Revise la carpeta data/.");
+            return;
+        }
+        if (!cargarAsientosTexto(ARCHIVO_ASIENTOS)) {
+            System.out.println("No se pudieron recargar los asientos. Corrija " + ARCHIVO_ASIENTOS + " y reinicie el programa.");
+            return;
+        }
+        recalcularSaldos();
+        bloqueoPorCatalogo = false;
+        bloquearGuardadoAsientos = false;
+        if (estabaBloqueado) System.out.println("El bloqueo de guardado del catalogo fue levantado.");
+        System.out.println("Catalogo reconstruido con " + cuentaCodigos.size() + " cuentas estandar.");
+        System.out.println("Asientos recargados: " + asientoFechas.size() + ".");
     }
     static void inicializarCuentas() {
         for (String grupo : CATALOGO_ESTANDAR)
@@ -432,6 +524,10 @@ public class Contabilidad {
     }
     static boolean guardarAsientos() {
         if (bloquearGuardadoAsientos) { System.out.println("No se guardaron los asientos: corrija " + ARCHIVO_ASIENTOS + " y reinicie el programa."); return false; }
+        if (bloqueoPorCatalogo) {
+            System.out.println("No se guardaron los asientos: el catalogo esta vacio o no se pudo leer. Use la opcion 1.4 para reconstruir el catalogo estandar.");
+            return false;
+        }
         StringBuilder contenido = new StringBuilder();
         for (int i = 0; i < asientoFechas.size(); i++) {
             contenido.append("ASIENTO|").append(limpiarCampo(asientoFechas.get(i))).append('|')
@@ -449,6 +545,7 @@ public class Contabilidad {
     static boolean cargarAsientosTexto(String archivo) {
         asientoFechas.clear(); asientoDescripciones.clear(); asientoTotales.clear(); asientoTipos.clear();
         partidaCodigos.clear(); partidaTipos.clear(); partidaMontos.clear();
+        asientosEnArchivo = 0;
         File file = new File(archivo);
         if (!file.exists()) return true;
         int[] stats = {0, 0}; boolean[] descarte = {false}; boolean enAsiento = false; int lineaAsiento = 0;
@@ -494,6 +591,7 @@ public class Contabilidad {
             if (enAsiento) cerrarAsientoCargado(archivo, lineaAsiento, fecha, descripcion, totalTexto,
                     tipoAsiento, cods, tips, mons, bloqueInvalido, errores, avisos, stats, descarte);
         } catch (IOException e) { System.out.println("Error leyendo " + archivo + ": " + e.getMessage()); return false; }
+        asientosEnArchivo = stats[0] + stats[1];
         if (descarte[0]) {
             System.out.println("Carga de asientos: " + stats[0] + " validos, " + stats[1] + " omitidos.");
             System.out.println("ADVERTENCIA: " + archivo + " contiene asientos o lineas invalidas.");
@@ -581,12 +679,15 @@ public class Contabilidad {
     }
     static void crearCuenta() {
         if (bloquearGuardadoCuentas) {
-            System.out.println("No se pueden crear cuentas hasta corregir " + ARCHIVO_CUENTAS + " y reiniciar el programa.");
+            System.out.println("No se pueden crear cuentas: el catalogo esta vacio o no se pudo leer " + ARCHIVO_CUENTAS
+                    + ". Use la opcion 1.4 para reconstruir el catalogo estandar.");
             return;
         }
         linea("\n--- NUEVA CUENTA ---", "Se pediran tres datos: nombre, tipo y codigo.");
         String nombre = leerTextoPersistible("Nombre de la cuenta (ej: Caja chica): ", "nombre");
+        if (entradaCerrada) { System.out.println("No se creo la cuenta."); return; }
         String tipo = pedirTipoCuenta();
+        if (entradaCerrada) { System.out.println("No se creo la cuenta."); return; }
         String sugerido = sugerirCodigoCuenta(tipo);
         String codigo;
         while (true) {
@@ -594,8 +695,9 @@ public class Contabilidad {
                 codigo = leerString("Codigo de la cuenta (ej: 1010): ");
             } else {
                 codigo = leerTextoOpcional("Codigo de la cuenta (ej: " + sugerido + "; Enter para usarlo): ");
-                if (codigo.isEmpty()) codigo = sugerido;
             }
+            if (entradaCerrada) { System.out.println("No se creo la cuenta."); return; }
+            if (codigo.isEmpty() && !sugerido.isEmpty()) codigo = sugerido;
             String error = codigo.equals("0") ? "El codigo 0 esta reservado para cancelar. Ingrese otro."
                     : codigo.equals("?") || codigo.contains("|") ? "El codigo no puede ser ? ni contener el caracter |."
                     : existeCuenta(codigo) || existeCodigoNormalizado(codigo) ? "El codigo ya existe. Ingrese otro." : null;
@@ -632,11 +734,17 @@ public class Contabilidad {
     }
     static String leerTextoOpcional(String mensaje) {
         System.out.print(mensaje);
+        if (!scanner.hasNext()) {
+            entradaCerrada = true;
+            System.out.println("No hay mas entrada disponible. Se cerrara el programa.");
+            return "";
+        }
         return scanner.nextLine().trim();
     }
     static String leerTextoPersistible(String mensaje, String campo) {
         while (true) {
             String texto = leerString(mensaje);
+            if (texto == null) { entradaCerrada = true; return ""; }
             if (!texto.contains("|")) return texto;
             System.out.println("El campo " + campo + " no puede contener el caracter |.");
         }
@@ -644,7 +752,11 @@ public class Contabilidad {
     static boolean tipoValido(String tipo) { return TIPOS.contains(tipo); }
     static void registrarAsiento() {
         if (bloquearGuardadoAsientos || bloquearGuardadoCuentas) {
-            System.out.println("No se pueden registrar asientos hasta corregir los archivos de datos y reiniciar el programa."); return;
+            if (bloquearGuardadoCuentas)
+                System.out.println("No se pueden registrar asientos: el catalogo de cuentas esta vacio o no se pudo leer. Use la opcion 1.4 para reconstruir el catalogo estandar.");
+            else
+                System.out.println("No se pueden registrar asientos hasta corregir " + ARCHIVO_ASIENTOS + " y reiniciar el programa.");
+            return;
         }
         if (periodoContieneCierre(periodoInicio, periodoFin)) {
             System.out.println("El periodo actual esta cerrado. Configure un periodo abierto en la opcion 12."); return;
@@ -654,6 +766,7 @@ public class Contabilidad {
         String fecha;
         while (true) {
             fecha = leerFecha("Fecha del asiento");
+            if (fecha == null) { System.out.println("Asiento cancelado. No se guardo nada."); return; }
             if (fechaEnRango(fecha, periodoInicio, periodoFin)) break;
             System.out.println("La fecha esta fuera del periodo actual. Cambie el periodo (opcion 12) o ingrese otra fecha.");
         }
@@ -700,6 +813,7 @@ public class Contabilidad {
             if (codigo == null) return false;
             String tipo = pedirTipoPartida();
             double monto = leerDouble("  Monto (ej: 1500,00): ");
+            if (entradaCerrada) return false;
             int idxCuenta = indiceCuenta(codigo); String tipoCuenta = cuentaTipos.get(idxCuenta);
             double saldoActual = saldosSimulados.get(idxCuenta), nuevoSaldo = saldoActual + efectoSaldo(tipoCuenta, tipo, monto);
             if (!esCuentaContraria(codigo) && nuevoSaldo < -TOLERANCIA_SALDO) {
@@ -726,6 +840,7 @@ public class Contabilidad {
     static boolean confirmar(String mensaje) {
         while (true) {
             String respuesta = leerString(mensaje);
+            if (respuesta == null) { entradaCerrada = true; System.out.println("Entrada cerrada."); return false; }
             if (respuesta.equalsIgnoreCase("S") || respuesta.equalsIgnoreCase("SI")) return true;
             if (respuesta.equalsIgnoreCase("N") || respuesta.equalsIgnoreCase("NO")) return false;
             System.out.println("Responda S (si) o N (no).");
@@ -806,6 +921,11 @@ public class Contabilidad {
     static String leerFecha(String mensaje) {
         while (true) {
             System.out.print(mensaje + " (dd/MM/yyyy, Enter = hoy): ");
+            if (!scanner.hasNext()) {
+                entradaCerrada = true;
+                System.out.println("No hay mas entrada disponible. Se cerrara el programa.");
+                return null;
+            }
             String entrada = scanner.nextLine().trim();
             if (entrada.isEmpty()) return fechaActual();
             LocalDate fecha = parsearFecha(entrada);
@@ -1118,6 +1238,7 @@ public class Contabilidad {
     static void buscarCuenta() {
         System.out.println("\n--- BUSCAR CUENTA ---");
         String termino = leerString("Escriba el codigo o parte del nombre (ej: 1000, caja, depreciacion): ");
+        if (termino == null) { entradaCerrada = true; System.out.println("Busqueda cancelada."); return; }
         System.out.println("\n=== RESULTADOS ===");
         List<String> encontradas = buscarCuentas(termino);
         if (encontradas.isEmpty()) {
@@ -1182,6 +1303,7 @@ public class Contabilidad {
                     "    Escriba el codigo (ej: 1000) o parte del nombre (ej: caja).",
                     "    ? = ver el catalogo | 0 = " + accionCancelar);
             String termino = leerString("    Cuenta: ");
+            if (termino == null) { entradaCerrada = true; return null; }
             if (termino.equals("0")) return null;
             if (termino.equals("?")) {
                 mostrarCuentas();
@@ -1211,6 +1333,7 @@ public class Contabilidad {
             linea("   0) Cancelar", "   V) Volver a buscar");
             while (true) {
                 String seleccion = leerString("  Numero de cuenta (0 = cancelar, V = volver a buscar): ");
+                if (seleccion == null) { entradaCerrada = true; return null; }
                 if (seleccion.equalsIgnoreCase("V")) break;
                 if (seleccion.equals("0")) return null;
                 try {
@@ -1229,10 +1352,18 @@ public class Contabilidad {
     }
     static void buscarAsientos() {
         int opcion = menu("BUSCAR ASIENTOS", "Por fecha exacta", "Por texto en la descripcion");
-        if (opcion == 0) return;
-        String fecha = opcion == 1 ? leerFecha("Fecha a buscar") : "";
-        String termino = opcion == 2
-                ? normalizarTexto(leerString("Texto a buscar en la descripcion: ")) : "";
+        if (opcion == 0 || entradaCerrada) return;
+        String fecha = "";
+        if (opcion == 1) {
+            fecha = leerFecha("Fecha a buscar");
+            if (fecha == null) { System.out.println("Busqueda cancelada."); return; }
+        }
+        String termino = "";
+        if (opcion == 2) {
+            String texto = leerString("Texto a buscar en la descripcion: ");
+            if (texto == null) { entradaCerrada = true; System.out.println("Busqueda cancelada."); return; }
+            termino = normalizarTexto(texto);
+        }
         List<Integer> indices = new ArrayList<>();
         for (int i = 0; i < asientoFechas.size(); i++) {
             if (!fechaEnRango(asientoFechas.get(i), vistaInicio(), vistaFin())) continue;
@@ -1291,6 +1422,11 @@ public class Contabilidad {
     static String leerEntrada(String mensaje) {
         while (true) {
             System.out.print(mensaje);
+            if (!scanner.hasNext()) {
+                entradaCerrada = true;
+                System.out.println("No hay mas entrada disponible. Se cerrara el programa.");
+                return null;
+            }
             String entrada = scanner.nextLine().trim();
             if (!entrada.isEmpty()) return entrada;
             System.out.println("La entrada no puede estar vacia.");
@@ -1300,7 +1436,9 @@ public class Contabilidad {
     static int leerInt(String mensaje, int minimo, int maximo) {
         while (true) {
             try {
-                int valor = Integer.parseInt(leerEntrada(mensaje));
+                String texto = leerEntrada(mensaje);
+                if (texto == null) { entradaCerrada = true; return minimo; }
+                int valor = Integer.parseInt(texto);
                 if (valor >= minimo && valor <= maximo) return valor;
                 System.out.println("Opcion invalida. Debe estar entre " + minimo + " y " + maximo + ".");
             } catch (NumberFormatException e) {
@@ -1311,7 +1449,9 @@ public class Contabilidad {
     static double leerDouble(String mensaje) {
         while (true) {
             try {
-                double valor = parsearMonto(leerEntrada(mensaje));
+                String texto = leerEntrada(mensaje);
+                if (texto == null) { entradaCerrada = true; return 0.0; }
+                double valor = parsearMonto(texto);
                 if (!Double.isFinite(valor) || valor <= 0) {
                     System.out.println("El monto debe ser un numero mayor que cero.");
                     continue;
@@ -1362,8 +1502,11 @@ public class Contabilidad {
     }
     static void salir() {
         System.out.println("\nGuardando datos y saliendo...");
-        if (bloquearGuardadoAsientos || bloquearGuardadoCuentas) {
-            System.out.println("No se guardaron cambios: corrija los archivos de datos y reinicie el programa.");
+        if (bloquearGuardadoAsientos || bloquearGuardadoCuentas || bloqueoPorCatalogo) {
+            if (bloquearGuardadoCuentas || bloqueoPorCatalogo)
+                System.out.println("No se guardaron cambios: el catalogo esta vacio o no se pudo leer. Use la opcion 1.4 para reconstruirlo.");
+            else
+                System.out.println("No se guardaron cambios: corrija " + ARCHIVO_ASIENTOS + " y reinicie el programa.");
         } else {
             boolean asientosOk = guardarAsientos();
             boolean cuentasOk = guardarCuentas();

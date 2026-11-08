@@ -22,6 +22,9 @@ javac -d bin src/Contabilidad.java
 java -cp bin Contabilidad
 ```
 
+Si se elimino o renombro una clase del codigo, borre `bin/` antes de compilar
+para que no queden clases viejas de versiones anteriores.
+
 El programa debe ejecutarse desde la carpeta que contiene `data/`, porque usa
 rutas relativas. Si `data/` no existe, se crea automaticamente con el catalogo
 de 75 cuentas y un periodo predeterminado.
@@ -53,6 +56,7 @@ La opcion 12 se agrega para controlar el periodo activo sin quitar ninguna de la
 1. Ver catalogo
 2. Crear cuenta
 3. Buscar cuenta
+4. Reconstruir catalogo estandar
 0. Volver
 
 **3. Consultar cuentas T**
@@ -77,6 +81,37 @@ La opcion 12 se agrega para controlar el periodo activo sin quitar ninguna de la
 0. Volver
 
 La opcion 10 crea el respaldo directamente, sin submenu.
+
+## Recuperar un catalogo vacio o invalido
+
+Si `data/cuentas.txt` existe pero no tiene ninguna cuenta valida (por ejemplo,
+quedo vacio o se borro a mano), el programa arranca avisando la situacion y
+**bloquea** la creacion de cuentas y el registro de asientos, porque no puede
+saber si un saldo pertenece a una cuenta real.
+
+La opcion **1.4 Reconstruir catalogo estandar** recupera la situacion:
+
+- Si el archivo tiene asientos que usan cuentas ajenas al catalogo estandar
+  (por ejemplo `A100`), la reconstruccion se **rechaza** y se informa cuales son
+  las cuentas afectadas. Hay que corregir o eliminar esos asientos primero.
+- Si el catalogo actual tiene cuentas, pide confirmacion y avisa que se
+  perderan las cuentas personalizadas.
+- Guarda una copia del archivo actual en
+  `backup/cuentas_antes_reconstruir_YYYYMMDD_HHmmss_SSS.txt`.
+- Vuelve a cargar las 75 cuentas estandar, guarda `cuentas.txt` y recarga
+  `asientos.txt` para que los saldos queden correctos.
+
+Mientras el catalogo este vacio, el programa **no sobrescribe
+`data/asientos.txt`**, aunque los asientos no se puedan cargar (porque sus
+cuentas no existen todavia). Asi no se pierden los datos originales: al
+reconstruir el catalogo, los asientos se recuperan intactos.
+
+## Fin de la entrada
+
+Si la entrada termina (por ejemplo al piping de un archivo o al presionar
+Ctrl+Z en Windows), el programa no se cae: avisa `No hay mas entrada
+disponible`, cancela la operacion en curso, guarda los datos y termina con
+`Hasta luego.`
 
 ## Periodos contables
 
@@ -351,6 +386,15 @@ de cuentas T acreedoras, el funcionamiento de los periodos, el cierre con
 traslado a `3200`, el avance automatico del periodo, el bloqueo de asientos en
 periodos cerrados, el rechazo de fechas fuera del periodo y el respaldo de
 `periodo.txt`.
+
+Tambien cubre los dos casos de estabilidad agregados en el ultimo cambio:
+
+- **fin de entrada:** seis escenarios (registrar asiento, consultar cuenta T,
+  configurar periodo, crear cuenta, buscar asientos y respaldar) verifican que
+  el programa cierra con `Hasta luego.` y sin `Exception in thread`;
+- **recuperacion del catalogo:** catalogo vacio que se reconstruye y vuelve a
+  ser operativo, preservacion de `asientos.txt` durante la recuperacion y
+  rechazo de la reconstruccion cuando hay una cuenta huerfana.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tests/pruebas_fase_d.ps1

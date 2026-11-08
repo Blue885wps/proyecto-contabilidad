@@ -774,6 +774,113 @@ try {
     Assert-Contains $out3200b "La cuenta 3200 no existe o no es de tipo Patrimonio." "cierre rechazado por 3200 ausente"
     Write-Host "OK: cierre rechazado por 3200 ausente"
 
+    # ------------------------------------------------------------------
+    # Fin de entrada: el programa cierra limpio, sin excepciones
+    # ------------------------------------------------------------------
+    $dirEof = New-TestDir "eof"
+    Write-Utf8 (Join-Path $dirEof "data\cuentas.txt") (("1000|Caja|Activo|0.0", "4010|Ventas|Ingreso|0.0") -join "`r`n")
+    Write-Utf8 (Join-Path $dirEof "data\asientos.txt") ""
+
+    $casosEof = [ordered]@{
+        "registro" = @("2")
+        "cuenta_t"  = @("3", "1")
+        "periodo"   = @("12", "2")
+        "crear"     = @("1", "2")
+        "busqueda"  = @("9", "2", "2")
+        "respaldo"  = @("10")
+    }
+    foreach ($nombre in $casosEof.Keys) {
+        $inputEof = Write-Input $dirEof ("in_" + $nombre + ".txt") $casosEof[$nombre]
+        $outEof = Invoke-App $dirEof $inputEof
+        Assert-NotContains $outEof "Exception in thread" ("sin excepcion al agotar la entrada ($nombre)")
+        Assert-Contains $outEof "Hasta luego." ("cierre ordenado al agotar la entrada ($nombre)")
+    }
+    $outEofRegistro = Invoke-App $dirEof (Write-Input $dirEof "in_registro2.txt" @("2"))
+    Assert-Contains $outEofRegistro "Asiento cancelado. No se guardo nada." "asiento cancelado al agotar la entrada"
+    $outEofPeriodo = Invoke-App $dirEof (Write-Input $dirEof "in_periodo2.txt" @("12", "2"))
+    Assert-Contains $outEofPeriodo "No se cambio el periodo." "periodo sin cambios al agotar la entrada"
+    Write-Host "OK: fin de entrada cierra el programa sin excepciones"
+
+    # ------------------------------------------------------------------
+    # Catalogo vacio: se puede reconstruir y seguir operando
+    # ------------------------------------------------------------------
+    $dirCatalogo = New-TestDir "catalogo_vacio"
+    Write-Utf8 (Join-Path $dirCatalogo "data\cuentas.txt") ""
+    Write-Utf8 (Join-Path $dirCatalogo "data\asientos.txt") ""
+    Write-Utf8 (Join-Path $dirCatalogo "data\periodo.txt") ("01/01/2020|31/12/2099" + "`r`n")
+
+    $inputCatalogo = Write-Input $dirCatalogo "input.txt" @(
+        "1", "4", "0",
+        "1", "2", "Cuenta de prueba", "1", "1010", "0",
+        "2", "", "Prueba tras recuperar", "1000", "1", "100", "4020", "2", "100", "N", "S",
+        "11"
+    )
+    $outCatalogo = Invoke-App $dirCatalogo $inputCatalogo
+    Assert-Contains $outCatalogo "Use la opcion 1.4 (Reconstruir catalogo estandar)" "aviso para recuperar el catalogo"
+    Assert-Contains $outCatalogo "Catalogo reconstruido con 75 cuentas estandar." "catalogo reconstruido"
+    Assert-Contains $outCatalogo "Cuenta creada exitosamente: 1010 - Cuenta de prueba (Activo)." "cuenta creada tras recuperar"
+    Assert-Contains $outCatalogo "Asiento registrado exitosamente." "asiento registrado tras recuperar"
+
+    $lineasCatalogo = (Get-Content (Join-Path $dirCatalogo "data\cuentas.txt") | Where-Object { $_.Trim() -ne "" }).Count
+    if ($lineasCatalogo -ne 76) {
+        throw "FALLO: se esperaban 76 cuentas (75 estandar + 1 creada) y hay $lineasCatalogo"
+    }
+    $asientosCatalogo = (Get-Content (Join-Path $dirCatalogo "data\asientos.txt") | Select-String -Pattern "^ASIENTO").Count
+    if ($asientosCatalogo -ne 1) {
+        throw "FALLO: se esperaba 1 asiento y hay $asientosCatalogo"
+    }
+    $respaldoCatalogo = Get-ChildItem (Join-Path $dirCatalogo "backup") -File -Filter "cuentas_antes_reconstruir_*.txt"
+    if ($null -eq $respaldoCatalogo) {
+        throw "FALLO: no se guardo la copia del catalogo antes de reconstruir"
+    }
+    Write-Host "OK: catalogo vacio reconstruido y operativo"
+
+    # ------------------------------------------------------------------
+    # Catalogo vacio con asientos validos: el archivo no se sobrescribe
+    # ------------------------------------------------------------------
+    $dirProteccion = New-TestDir "catalogo_protegido"
+    Write-Utf8 (Join-Path $dirProteccion "data\cuentas.txt") ""
+    $asientosProteccion = @(
+        "ASIENTO|01/03/2026|Venta protegida|100.00",
+        "PARTIDA|1000|Debito|100.00",
+        "PARTIDA|4020|Credito|100.00"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $dirProteccion "data\asientos.txt") $asientosProteccion
+
+    $inputProteccion = Write-Input $dirProteccion "input.txt" @("1", "4", "0", "4", "11")
+    $outProteccion = Invoke-App $dirProteccion $inputProteccion
+    Assert-Contains $outProteccion "no se sobrescribira data/asientos.txt" "aviso de proteccion del archivo de asientos"
+    Assert-Contains $outProteccion "Asientos recargados: 1" "asientos recargados tras reconstruir"
+    Assert-Contains $outProteccion "Total de asientos: 1" "libro diario con los asientos recuperados"
+    $contenidoProteccion = Get-Content (Join-Path $dirProteccion "data\asientos.txt") -Raw
+    if (-not $contenidoProteccion.Contains("Venta protegida")) {
+        throw "FALLO: se perdieron los asientos originales al reconstruir el catalogo"
+    }
+    Write-Host "OK: asientos originales preservados durante la recuperacion"
+
+    # ------------------------------------------------------------------
+    # Cuenta huerfana: la reconstruccion se rechaza
+    # ------------------------------------------------------------------
+    $dirHuerfano = New-TestDir "catalogo_huerfano"
+    Write-Utf8 (Join-Path $dirHuerfano "data\cuentas.txt") ""
+    $asientosHuerfano = @(
+        "ASIENTO|01/03/2026|Uso de cuenta propia|100.00",
+        "PARTIDA|A100|Debito|100.00",
+        "PARTIDA|4020|Credito|100.00"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $dirHuerfano "data\asientos.txt") $asientosHuerfano
+
+    $inputHuerfano = Write-Input $dirHuerfano "input.txt" @("1", "4", "0", "11")
+    $outHuerfano = Invoke-App $dirHuerfano $inputHuerfano
+    Assert-Contains $outHuerfano "No se puede reconstruir el catalogo" "reconstruccion bloqueada por cuenta huerfana"
+    Assert-Contains $outHuerfano "Cuentas afectadas: A100" "codigo huerfano identificado"
+    Assert-NotContains $outHuerfano "Catalogo reconstruido" "no se reconstruye con cuentas huerfanas"
+    $contenidoHuerfano = Get-Content (Join-Path $dirHuerfano "data\asientos.txt") -Raw
+    if (-not $contenidoHuerfano.Contains("PARTIDA|A100|Debito|100.00")) {
+        throw "FALLO: se perdio el archivo de asientos con una cuenta huerfana"
+    }
+    Write-Host "OK: reconstruccion rechazada por cuenta huerfana"
+
     Write-Host ""
     Write-Host "TODAS LAS PRUEBAS PASARON."
 } finally {
