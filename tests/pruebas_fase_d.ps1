@@ -162,7 +162,7 @@ try {
     Assert-Match $out 'TOTAL ACTIVO:\s+3300[.,]50' "total activo exacto"
     Assert-Match $out 'TOTAL PASIVO:\s+0[.,]00' "total pasivo exacto"
     Assert-Match $out 'TOTAL PATRIMONIO:\s+0[.,]00' "total patrimonio exacto"
-    Assert-Match $out 'Resultado del ejercicio:\s+3300[.,]50' "resultado del ejercicio exacto"
+    Assert-Match $out 'Resultado del periodo:\s+3300[.,]50' "resultado del periodo exacto"
     Assert-Match $out 'Total Pasivo \+ Patrimonio \+ Resultado:\s+3300[.,]50' "ecuacion del balance exacta"
     Assert-Match $out 'Diferencia:\s+0[.,]00' "diferencia del balance en cero"
     Assert-Match $out 'TOTALES:\s+3700[.,]50\s+3700[.,]50' "totales de la balanza exactos"
@@ -170,6 +170,25 @@ try {
     Assert-Contains $out "EL BALANCE CUADRA CORRECTAMENTE." "balance general"
     Assert-Contains $out "Gasto de renta" "busqueda de asientos"
     Assert-Contains $out "Respaldo creado en: backup\manual_" "respaldo manual"
+
+    # ------------------------------------------------------------------
+    # Cuenta T de naturaleza acreedora: saldo y etiqueta correctos
+    # ------------------------------------------------------------------
+    $dirCuentaT = New-TestDir "cuenta_t_acreedor"
+    $cuentasT = @("1000|Caja|Activo|0.0", "3000|Capital social|Patrimonio|0.0") -join "`r`n"
+    Write-Utf8 (Join-Path $dirCuentaT "data\cuentas.txt") ($cuentasT + "`r`n")
+    $asientosT = @(
+        "ASIENTO|01/01/2026|Aporte de capital|1000.0",
+        "PARTIDA|1000|Debito|1000.0",
+        "PARTIDA|3000|Credito|1000.0"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $dirCuentaT "data\asientos.txt") ($asientosT + "`r`n")
+    $inputCuentaT = Write-Input $dirCuentaT "input.txt" @("3", "1", "3000", "0", "11")
+    $outCuentaT = Invoke-App $dirCuentaT $inputCuentaT
+    Assert-Contains $outCuentaT "CUENTA T: 3000 - Capital social (Patrimonio)" "cuenta T de patrimonio"
+    Assert-Contains $outCuentaT "SALDO: 1000,00 (Acreedor)" "saldo acreedor en cuenta T"
+    Assert-NotContains $outCuentaT "lado contrario al normal para una cuenta de tipo Patrimonio" "sin aviso falso en cuenta T de patrimonio"
+    Write-Host "OK: cuenta T de naturaleza acreedora"
 
     $contenidoCuentas = Get-Content (Join-Path $dir "data\cuentas.txt") -Raw
     if (-not $contenidoCuentas.Contains("1020|Cuenta buena|Activo")) {
@@ -220,6 +239,12 @@ try {
     }
     Write-Host "OK: balance.txt generado con valores exactos"
 
+    $periodo = Get-Content (Join-Path $dir "data\periodo.txt") -Raw
+    if ($periodo.Trim() -notmatch '^\d{2}/\d{2}/\d{4}\|\d{2}/\d{2}/\d{4}$') {
+        throw "FALLO: periodo.txt no tiene el formato inicio|fin"
+    }
+    Write-Host "OK: periodo.txt creado con formato inicio|fin"
+
     $respaldo = Get-ChildItem (Join-Path $dir "backup") -Directory -Filter "manual_*" | Select-Object -First 1
     if ($null -eq $respaldo) {
         throw "FALLO: no se creo la carpeta de respaldo manual"
@@ -229,6 +254,9 @@ try {
     }
     if (-not (Test-Path (Join-Path $respaldo.FullName "asientos.txt"))) {
         throw "FALLO: el respaldo no contiene asientos.txt"
+    }
+    if (-not (Test-Path (Join-Path $respaldo.FullName "periodo.txt"))) {
+        throw "FALLO: el respaldo no contiene periodo.txt"
     }
     Write-Host "OK: respaldo manual completo"
 
@@ -446,6 +474,140 @@ try {
         throw "FALLO: el archivo con fallo de lectura fue reemplazado"
     }
     Write-Host "OK: asientos.txt intacto tras fallo de lectura"
+
+    # ------------------------------------------------------------------
+    # Periodos contables: cierre, traslado del resultado y filtros
+    # ------------------------------------------------------------------
+    $dirPeriodo = New-TestDir "periodos"
+    $cuentasPeriodo = @(
+        "1000|Caja|Activo|0.0",
+        "3000|Capital social|Patrimonio|0.0",
+        "3200|Resultados de ejercicios anteriores|Patrimonio|0.0",
+        "4010|Ventas|Ingreso|0.0",
+        "6010|Gastos de venta|Gasto|0.0"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $dirPeriodo "data\cuentas.txt") ($cuentasPeriodo + "`r`n")
+    Write-Utf8 (Join-Path $dirPeriodo "data\periodo.txt") ("01/01/2026|31/12/2026" + "`r`n")
+
+    $asientosPeriodo = @(
+        "ASIENTO|10/01/2026|Aporte de capital|1000.0",
+        "PARTIDA|1000|Debito|1000.0",
+        "PARTIDA|3000|Credito|1000.0",
+        "ASIENTO|15/01/2026|Venta del periodo|500.0",
+        "PARTIDA|1000|Debito|500.0",
+        "PARTIDA|4010|Credito|500.0",
+        "ASIENTO|20/01/2026|Gasto del periodo|200.0",
+        "PARTIDA|6010|Debito|200.0",
+        "PARTIDA|1000|Credito|200.0"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $dirPeriodo "data\asientos.txt") ($asientosPeriodo + "`r`n")
+
+    $inputPeriodo = Write-Input $dirPeriodo "input_reporte.txt" @(
+        "7", "8", "12", "1", "0", "11"
+    )
+    $outPeriodo = Invoke-App $dirPeriodo $inputPeriodo
+    Assert-Contains $outPeriodo "Periodo: 01/01/2026 al 31/12/2026" "periodo configurado"
+    Assert-Contains $outPeriodo "Estado: ABIERTO" "periodo abierto"
+    Assert-Contains $outPeriodo "Asientos en el periodo: 3" "conteo de asientos del periodo"
+    Assert-Match $outPeriodo 'TOTAL INGRESOS:\s+500[.,]00' "ingresos del periodo"
+    Assert-Match $outPeriodo 'TOTAL GASTOS:\s+200[.,]00' "gastos del periodo"
+    Assert-Match $outPeriodo 'Resultado del periodo:\s+300[.,]00' "resultado del periodo antes del cierre"
+    Assert-Match $outPeriodo 'TOTAL ACTIVO:\s+1300[.,]00' "activo del periodo"
+    Assert-Match $outPeriodo 'TOTAL PATRIMONIO:\s+1000[.,]00' "patrimonio antes del cierre"
+    Assert-Match $outPeriodo 'Total Pasivo \+ Patrimonio \+ Resultado:\s+1300[.,]00' "balance antes del cierre"
+    Assert-Contains $outPeriodo "EL BALANCE CUADRA CORRECTAMENTE." "balance del periodo cuadra"
+
+    $inputCierre = Write-Input $dirPeriodo "input_cierre.txt" @(
+        "12", "3", "S", "0", "11"
+    )
+    $outCierre = Invoke-App $dirPeriodo $inputCierre
+    Assert-Contains $outCierre "Periodo cerrado. Resultado trasladado a 3200." "cierre del periodo"
+    Assert-Match $outCierre 'Resultado:\s+300[.,]00 \(Utilidad\)' "resultado del cierre"
+    Assert-Contains $outCierre "Nuevo periodo: 01/01/2027 al 31/12/2027" "avance automatico del periodo"
+
+    $asientosCerrados = Get-Content (Join-Path $dirPeriodo "data\asientos.txt") -Raw
+    if (-not $asientosCerrados.Contains("|CIERRE")) {
+        throw "FALLO: el asiento de cierre no se marco con |CIERRE"
+    }
+    if (-not $asientosCerrados.Contains("PARTIDA|3200|Credito|300.0")) {
+        throw "FALLO: el resultado no se traslado a la cuenta 3200"
+    }
+    Write-Host "OK: asiento de cierre guardado y resultado trasladado"
+
+    $periodoGuardado = (Get-Content (Join-Path $dirPeriodo "data\periodo.txt") -Raw).Trim()
+    if ($periodoGuardado -ne "01/01/2027|31/12/2027") {
+        throw "FALLO: periodo.txt no avanzo al siguiente periodo: $periodoGuardado"
+    }
+    Write-Host "OK: periodo.txt guardado con el periodo siguiente"
+
+    $cuentasCerradas = Get-Content (Join-Path $dirPeriodo "data\cuentas.txt") -Raw
+    if (-not $cuentasCerradas.Contains("1000|Caja|Activo|1300.0")) {
+        throw "FALLO: Caja no quedo con el saldo esperado"
+    }
+    if (-not $cuentasCerradas.Contains("3200|Resultados de ejercicios anteriores|Patrimonio|300.0")) {
+        throw "FALLO: la cuenta 3200 no quedo con el resultado del cierre"
+    }
+    if (-not $cuentasCerradas.Contains("4010|Ventas|Ingreso|0.0")) {
+        throw "FALLO: Ventas no quedo en cero tras el cierre"
+    }
+    if (-not $cuentasCerradas.Contains("6010|Gastos de venta|Gasto|0.0")) {
+        throw "FALLO: Gastos no quedo en cero tras el cierre"
+    }
+    Write-Host "OK: cuentas de resultado cerradas y saldo trasladado"
+
+    $inputPosterior = Write-Input $dirPeriodo "input_posterior.txt" @(
+        "7", "8", "4", "12", "1", "0", "11"
+    )
+    $outPosterior = Invoke-App $dirPeriodo $inputPosterior
+    Assert-Contains $outPosterior "Periodo: 01/01/2027 al 31/12/2027" "periodo siguiente"
+    Assert-Contains $outPosterior "Asientos en el periodo: 0" "periodo siguiente sin asientos"
+    Assert-Contains $outPosterior "Asientos fuera del periodo: 4" "asientos fuera del periodo siguiente"
+    Assert-Contains $outPosterior "No hay asientos registrados en la vista actual." "libro diario filtrado por periodo"
+    Assert-Match $outPosterior 'TOTAL INGRESOS:\s+0[.,]00' "ingresos del periodo siguiente"
+    Assert-Match $outPosterior 'TOTAL GASTOS:\s+0[.,]00' "gastos del periodo siguiente"
+    Assert-Match $outPosterior 'Resultado del periodo:\s+0[.,]00' "resultado del periodo siguiente"
+    Assert-Match $outPosterior 'TOTAL ACTIVO:\s+1300[.,]00' "activo despues del cierre"
+    Assert-Match $outPosterior 'TOTAL PATRIMONIO:\s+1300[.,]00' "patrimonio despues del cierre"
+    Assert-Match $outPosterior 'Total Pasivo \+ Patrimonio \+ Resultado:\s+1300[.,]00' "balance despues del cierre"
+    Assert-Contains $outPosterior "EL BALANCE CUADRA CORRECTAMENTE." "balance posterior al cierre"
+
+    $inputCerrado = Write-Input $dirPeriodo "input_cerrado.txt" @(
+        "12", "2", "01/01/2026", "31/12/2026", "S", "0",
+        "2", "0", "11"
+    )
+    $outCerrado = Invoke-App $dirPeriodo $inputCerrado
+    Assert-Contains $outCerrado "El periodo ya tiene un cierre." "aviso de periodo cerrado"
+    Assert-Contains $outCerrado "El periodo actual esta cerrado." "registro bloqueado en periodo cerrado"
+    $cantidadCerrada = (Get-Content (Join-Path $dirPeriodo "data\asientos.txt") | Select-String -Pattern "^ASIENTO").Count
+    if ($cantidadCerrada -ne 4) {
+        throw "FALLO: se registro un asiento en un periodo cerrado. Hay $cantidadCerrada asientos."
+    }
+    Write-Host "OK: periodo cerrado sin asientos nuevos"
+
+    $inputFuera = Write-Input $dirPeriodo "input_fuera.txt" @(
+        "12", "2", "01/01/2027", "31/12/2027", "S", "0",
+        "2", "01/02/2026", "01/02/2027", "Asiento fuera de periodo", "0",
+        "11"
+    )
+    $outFuera = Invoke-App $dirPeriodo $inputFuera
+    Assert-Contains $outFuera "La fecha esta fuera del periodo actual." "fecha fuera del periodo rechazada"
+    Assert-Contains $outFuera "Asiento cancelado." "asiento fuera de periodo cancelado"
+    $cantidadFuera = (Get-Content (Join-Path $dirPeriodo "data\asientos.txt") | Select-String -Pattern "^ASIENTO").Count
+    if ($cantidadFuera -ne 4) {
+        throw "FALLO: se guardo un asiento fuera del periodo. Hay $cantidadFuera asientos."
+    }
+    Write-Host "OK: fecha fuera del periodo no registrada"
+
+    $inputHistorico = Write-Input $dirPeriodo "input_historico.txt" @(
+        "12", "2", "01/01/2026", "31/12/2026", "S", "4", "0",
+        "4", "6", "0"
+    )
+    $outHistorico = Invoke-App $dirPeriodo $inputHistorico
+    Assert-Contains $outHistorico "Vista de reportes: Historico completo" "cambio a vista historica"
+    Assert-Contains $outHistorico "Asiento #4 (cierre)" "asiento de cierre en libro diario"
+    Assert-Contains $outHistorico "Total de asientos: 4" "libro diario historico completo"
+    Assert-Contains $outHistorico "LA BALANZA DE COMPROBACION ESTA CUADRADA." "balanza historica cuadrada"
+    Assert-Match $outHistorico 'TOTALES:\s+2200[.,]00\s+2200[.,]00' "totales historicos de la balanza"
 
     Write-Host ""
     Write-Host "TODAS LAS PRUEBAS PASARON."

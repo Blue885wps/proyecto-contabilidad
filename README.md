@@ -1,9 +1,9 @@
 # Sistema Contable Empresarial
 
 Aplicacion de consola en Java para registrar operaciones contables por partida
-doble, consultar el catalogo de cuentas, revisar cuentas T y generar los
-reportes basicos. Los datos se guardan en archivos de texto plano dentro de
-`data/`.
+doble, administrar periodos, consultar el catalogo de cuentas, revisar cuentas T
+y generar los reportes basicos. Los datos se guardan en archivos de texto plano
+dentro de `data/`.
 
 ## Requisitos
 
@@ -24,7 +24,7 @@ java -cp bin Contabilidad
 
 El programa debe ejecutarse desde la carpeta que contiene `data/`, porque usa
 rutas relativas. Si `data/` no existe, se crea automaticamente con el catalogo
-de 75 cuentas.
+de 75 cuentas y un periodo predeterminado.
 
 ## Menu
 
@@ -41,6 +41,10 @@ de 75 cuentas.
 | 9 | Consultar movimientos |
 | 10 | Respaldar informacion |
 | 11 | Salir (tambien acepta `0`) |
+| 12 | Gestionar periodos contables |
+
+La opcion 12 se agrega para controlar el periodo activo sin quitar ninguna de las
+11 opciones de la consigna.
 
 ### Submenus
 
@@ -64,7 +68,111 @@ de 75 cuentas.
 2. Buscar asientos
 0. Volver
 
+**12. Gestionar periodos contables**
+
+1. Ver periodo actual
+2. Configurar periodo
+3. Cerrar periodo y trasladar resultado
+4. Reportes: periodo actual / historico
+0. Volver
+
 La opcion 10 crea el respaldo directamente, sin submenu.
+
+## Periodos contables
+
+El periodo activo se guarda en `data/periodo.txt` con el formato
+`inicio|fin`. Las dos fechas son inclusivas y usan `dd/MM/yyyy`.
+
+Si el archivo no existe, el programa crea uno con el ano actual y lo amplia
+para cubrir la fecha mas antigua y la mas reciente de los asientos existentes.
+Si el archivo existe pero es invalido, avisa y lo reemplaza por ese periodo
+predeterminado.
+
+### Ver periodo actual (12.1)
+
+Muestra el inicio, el fin, el estado (`ABIERTO` o `CERRADO (solo consulta)`), la
+vista de reportes activa y cuantos asientos estan dentro y fuera del periodo.
+
+Un periodo esta cerrado cuando contiene un asiento marcado como cierre. No se
+guarda una bandera aparte: el cierre se deduce del asiento.
+
+### Configurar periodo (12.2)
+
+Pide una fecha de inicio y una fecha de fin, valida que sean fechas reales y que
+el fin no sea anterior al inicio. Antes de guardar pide confirmacion `S/N`.
+
+El rango puede ser mensual, anual o personalizado. Si el rango contiene un
+asiento de cierre, queda como periodo de consulta: se pueden ver sus reportes,
+pero no se pueden registrar asientos nuevos ni volver a cerrarlo.
+
+Al configurar un periodo, el programa tambien avisa si:
+
+- hay asientos fuera del rango elegido;
+- hay resultados de periodos anteriores que todavia no se cerraron.
+
+Los asientos fuera del periodo no se borran. Simplemente no aparecen en los
+reportes del periodo actual; si aparecen en la vista historica.
+
+### Cerrar periodo (12.3)
+
+El cierre solo se permite en un periodo abierto. El programa toma los saldos
+acumulados de las cuentas de tipo `Ingreso`, `Costo` y `Gasto` hasta la fecha de
+fin del periodo, muestra un resumen y pide confirmacion `S/N`.
+
+Si se confirma, crea un asiento de cierre con fecha igual al fin del periodo:
+
+- deja en cero las cuentas de Ingreso, Costo y Gasto;
+- traslada el resultado a la cuenta
+  `3200 Resultados de ejercicios anteriores`;
+- si hubo utilidad, acredita `3200`; si hubo perdida, la debita;
+- guarda el asiento en `asientos.txt` con la marca `|CIERRE`.
+
+El cierre usa los saldos acumulados hasta la fecha de fin. Si hay periodos
+anteriores sin cerrar, el asiento incluye tambien esos resultados y el programa
+lo advierte antes de continuar. Lo recomendable es cerrar los periodos en orden.
+
+Si no hay saldos pendientes en las cuentas de resultado, el programa informa
+`No hay resultados pendientes de cierre en el periodo.` y no crea nada.
+
+Despues de cerrar, el programa avanza automaticamente el periodo:
+
+- un ano completo pasa al mismo rango del ano siguiente;
+- un mes completo pasa al mes siguiente;
+- un rango personalizado pasa a un rango de la misma cantidad de dias,
+  comenzando el dia siguiente al fin anterior.
+
+El nuevo periodo se guarda en `data/periodo.txt`. Se puede ajustar con la
+opcion 12.2.
+
+### Vista de reportes (12.4)
+
+La opcion 12.4 alterna entre:
+
+- **Periodo actual:** los reportes y consultas usan solo el periodo configurado
+  (con el comportamiento acumulado que se explica en la seccion Reportes).
+- **Historico completo:** los reportes y consultas usan todos los asientos.
+
+La vista no cambia el periodo activo ni los datos. Solo cambia lo que se muestra.
+El registro de asientos siempre usa el periodo configurado, aunque la vista este
+en historico.
+
+## Registro de operaciones
+
+La opcion 2 pide fecha, descripcion y al menos dos partidas. Cada partida tiene
+cuenta, lado y monto. El lado se elige con un menu (1 = Debe (debito), 2 = Haber
+(credito)). Despues de cada partida se muestra el acumulado del Debe y del Haber;
+despues de la segunda se puede agregar otra con `S/N`.
+
+La fecha debe estar dentro del periodo activo. Si el periodo esta cerrado, el
+registro se bloquea y se debe configurar un periodo abierto en la opcion 12.
+
+Si el asiento no cuadra, se muestra la diferencia entre el Debe y el Haber y se
+ofrece agregar otra partida para corregirlo o descartar el asiento. Antes de
+guardar se muestra un resumen con las cuentas, los montos y los totales. Se debe
+confirmar con `S/N`. Si se rechaza, el asiento no se guarda.
+
+Las descripciones, nombres y codigos no pueden contener el caracter `|`. Los
+codigos `0` y `?` estan reservados para cancelar y ver el catalogo.
 
 ## Busquedas
 
@@ -82,7 +190,8 @@ En las opciones que piden una cuenta:
 - Escriba `0` para cancelar la operacion.
 
 La busqueda de asientos permite buscar por fecha exacta o por texto en la
-descripcion.
+descripcion. Respeta la vista activa: en modo periodo solo busca dentro del
+periodo; en modo historico busca en todo el archivo.
 
 ## Montos y fechas
 
@@ -104,21 +213,6 @@ como `1.800` (tres decimales con un solo punto). En ese caso use `1800` o
 Las fechas usan el formato `dd/MM/yyyy`. En los campos de fecha, Enter usa la
 fecha actual.
 
-## Registro de operaciones
-
-La opcion 2 pide fecha, descripcion y al menos dos partidas. Cada partida tiene
-cuenta, lado y monto. El lado se elige con un menu (1 = Debe (debito), 2 = Haber
-(credito)). Despues de cada partida se muestra el acumulado del Debe y del Haber;
-despues de la segunda se puede agregar otra con `S/N`.
-
-Si el asiento no cuadra, se muestra la diferencia entre el Debe y el Haber y se
-ofrece agregar otra partida para corregirlo o descartar el asiento. Antes de
-guardar se muestra un resumen con las cuentas, los montos y los totales. Se debe
-confirmar con `S/N`. Si se rechaza, el asiento no se guarda.
-
-Las descripciones, nombres y codigos no pueden contener el caracter `|`. Los
-codigos `0` y `?` estan reservados para cancelar y ver el catalogo.
-
 ## Saldos en el lado contrario
 
 Antes de aceptar cada partida, el programa calcula como quedaria el saldo de la
@@ -131,9 +225,10 @@ Por ejemplo, si Inventarios tiene 2,000 en el Debe y se registra un credito de
 confirma, la cuenta T y el Balance General marcan el saldo con un aviso.
 
 Esto no bloquea automaticamente las cuentas de naturaleza contraria, como
-`1790 Depreciacion acumulada` o `1890 Amortizacion acumulada`, que pueden tener
-saldo negativo de forma legitima. Al iniciar, el programa tambien avisa si
-alguna cuenta quedo con saldo en el lado contrario.
+`1790 Depreciacion acumulada`, `1890 Amortizacion acumulada` o
+`3200 Resultados de ejercicios anteriores`, que pueden tener saldo negativo de
+forma legitima. Al iniciar, el programa tambien avisa si alguna cuenta quedo con
+saldo en el lado contrario.
 
 ## Cuentas T
 
@@ -141,51 +236,67 @@ La opcion 3 muestra cada cuenta en dos columnas, **Debe** y **Haber**, con fecha
 concepto y monto de cada movimiento. Al final presenta los totales de cada lado
 y el saldo de la cuenta (Deudor, Acreedor o Cero).
 
-Si el saldo queda en el lado contrario al normal para el tipo de cuenta (por
-ejemplo, un activo con saldo acreedor), la cuenta T muestra un aviso. Puede ser
-una cuenta de naturaleza contraria o un error de registro.
+En modo periodo, la cuenta T muestra el saldo inicial al dia anterior al inicio
+del periodo y los movimientos del periodo. En modo historico muestra todo el
+historico. Si el saldo queda en el lado contrario al normal para el tipo de
+cuenta (por ejemplo, un activo con saldo acreedor), la cuenta T muestra un aviso.
+Puede ser una cuenta de naturaleza contraria o un error de registro.
 
 Se puede consultar una cuenta, solo las cuentas con movimientos o el catalogo
 completo.
 
 ## Reportes
 
-Todos los reportes usan el historico completo de asientos; no hay periodo
-configurable.
+La vista activa se cambia en la opcion 12.4. Por defecto se usa el periodo
+actual.
 
 - **Libro diario (4):** formato clasico `Cta | Detalle | Parcial | Debe | Haber`.
   Cada asiento se numera, muestra primero las partidas del Debe y luego las del
   Haber con el prefijo `A `, deja vacia la columna `Parcial` y coloca la fecha y
   la descripcion al pie. Los asientos se ordenan por fecha y conservan su numero
-  original. Al final se muestra un unico `TOTAL GENERAL`.
+  original. Al final se muestra un unico `TOTAL GENERAL`. En modo periodo solo
+  incluye los asientos del periodo; los asientos de cierre se marcan como
+  `(cierre)`.
 - **Libro mayor (5):** movimientos de una cuenta ordenados por fecha y saldo
-  acumulado.
+  acumulado. En modo periodo muestra el saldo inicial antes del periodo y los
+  movimientos del periodo.
 - **Balanza de comprobacion (6):** debitos, creditos, deudor y acreedor por
-  cuenta; verifica que el total de debitos sea igual al de creditos.
+  cuenta; verifica que el total de debitos sea igual al de creditos. En modo
+  periodo muestra los movimientos acumulados hasta el fin del periodo.
 - **Estado de resultados (7):** ingresos, costos y gastos; utilidad bruta y
-  utilidad neta.
-- **Balance general (8):** activo, pasivo, patrimonio y resultado del ejercicio;
-  verifica `Activo = Pasivo + Patrimonio + Resultado`.
+  utilidad neta. En modo periodo usa solo los movimientos del periodo. Los
+  asientos de cierre no se cuentan para no duplicar el resultado. En modo
+  historico acumula todos los movimientos de resultado, tambien sin contar los
+  cierres.
+- **Balance general (8):** activo, pasivo, patrimonio y resultado del periodo;
+  verifica `Activo = Pasivo + Patrimonio + Resultado`. En modo periodo usa los
+  saldos acumulados hasta la fecha de fin, incluyendo los asientos de cierre. Si
+  el periodo ya fue cerrado, las cuentas de resultado quedan en cero y el
+  resultado aparece en `3200`; por eso el renglon `Resultado del periodo` sera
+  cero. Antes del cierre muestra el resultado pendiente. En modo historico usa
+  todo el historico.
 
-El balance general guarda la fecha de generacion en `data/balance.txt`. El
-tercer campo de ese archivo es el patrimonio mas el resultado del ejercicio.
+El balance general guarda el balance en `data/balance.txt`. En modo periodo el
+primer campo es la fecha de fin del periodo; en modo historico es la fecha de
+generacion. El cuarto campo es el patrimonio mas el resultado.
 
 ### Criterios contables
 
-- El resultado del ejercicio se calcula como `Ingresos - Costos - Gastos`.
+- El resultado del periodo se calcula como `Ingresos - Costos - Gastos`.
 - El balance general verifica `Activo = Pasivo + Patrimonio + Resultado`.
-- Las cuentas `3110` y `3120` son cuentas de cierre. El sistema calcula el
-  resultado desde las cuentas de Ingreso, Costo y Gasto; no registre el
-  resultado manualmente en `3110` o `3120` para evitar un doble conteo.
-- Las cuentas contrarias estandar `1790`, `1890`, `3120` y `3500` no generan el
-  aviso de saldo en el lado contrario. Una cuenta contraria personalizada puede
-  mostrar ese aviso, pero los calculos siguen siendo correctos.
+- El cierre automatico usa la cuenta
+  `3200 Resultados de ejercicios anteriores`. No registre el resultado a mano en
+  `3110` ni `3120` para evitar un doble conteo.
+- Las cuentas contrarias estandar `1790`, `1890`, `3120`, `3200` y `3500` no
+  generan el aviso de saldo en el lado contrario. Una cuenta contraria
+  personalizada puede mostrar ese aviso, pero los calculos siguen siendo
+  correctos.
 
 ## Respaldos
 
 La opcion 10 crea una copia manual en `backup/manual_YYYYMMDD_HHmmss_SSS/` con
-los archivos de datos que existan. No hay respaldos automaticos periodicos ni
-restauracion desde el programa.
+los archivos de datos que existan, incluido `periodo.txt`. No hay respaldos
+automaticos periodicos ni restauracion desde el programa.
 
 Si al iniciar se detectan lineas invalidas en `cuentas.txt` o asientos invalidos
 en `asientos.txt`, se guarda una copia del archivo original como
@@ -194,8 +305,9 @@ se puede crear la copia de `asientos.txt`, el programa conserva el archivo y no
 permite registrar asientos hasta corregirlo.
 
 Para recuperar un respaldo, cierre el programa y copie manualmente
-`cuentas.txt`, `asientos.txt` y `balance.txt` desde la carpeta del respaldo
-hacia `data/`.
+`cuentas.txt`, `asientos.txt`, `balance.txt` y `periodo.txt` desde la carpeta del
+respaldo hacia `data/`. Si el respaldo es de una version anterior y no tiene
+`periodo.txt`, el programa creara uno predeterminado al iniciar.
 
 ## Archivos de datos
 
@@ -203,11 +315,16 @@ hacia `data/`.
 data/
   cuentas.txt    Catalogo: codigo|nombre|tipo|saldo
   asientos.txt   Asientos y partidas (fuente de verdad)
+  periodo.txt    Periodo activo: inicio|fin
   balance.txt    Ultimo balance generado: fecha|activo|pasivo|patrimonio+resultado
 ```
 
 - `asientos.txt` es la fuente de verdad; los saldos se recalculan desde ahi al
   iniciar.
+- Un asiento normal usa cuatro campos:
+  `ASIENTO|fecha|descripcion|total`. Un asiento de cierre agrega un quinto campo:
+  `ASIENTO|fecha|descripcion|total|CIERRE`.
+- Las partidas usan `PARTIDA|codigo|Debito o Credito|monto`.
 - Al iniciar, `asientos.txt` se valida: fecha real, al menos dos partidas (una
   al Debe y una al Haber), cuentas existentes, montos validos y Debe = Haber con
   tolerancia de 0.005. Si un asiento es invalido, se omite completo y se informa
@@ -215,6 +332,7 @@ data/
 - Si `asientos.txt` no se puede leer, el programa informa el error y bloquea el
   guardado para no sobrescribir el archivo.
 - `cuentas.txt` exige codigo y nombre no vacios, tipo valido y saldo numerico.
+- `periodo.txt` exige dos fechas validas con fin mayor o igual al inicio.
 - Si se omiten cuentas o asientos invalidos, el programa guarda una copia del
   archivo original en `backup/` antes de reescribirlo.
 - No edite `cuentas.txt` ni `balance.txt` a mano salvo que sepa lo que hace.
@@ -228,7 +346,11 @@ copias temporales de los datos. No toca `data/` ni `backup/` reales. Incluye
 pruebas del libro diario clasico, la carga de asientos invalidos, la tolerancia
 de 0.005, los montos estrictos, las lineas desconocidas dentro de un asiento, la
 exencion de cuentas contrarias como `1790`, las columnas Deudor/Acreedor de la
-balanza y el bloqueo de guardado cuando falla la lectura de asientos.
+balanza, el bloqueo de guardado cuando falla la lectura de asientos, la etiqueta
+de cuentas T acreedoras, el funcionamiento de los periodos, el cierre con
+traslado a `3200`, el avance automatico del periodo, el bloqueo de asientos en
+periodos cerrados, el rechazo de fechas fuera del periodo y el respaldo de
+`periodo.txt`.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tests/pruebas_fase_d.ps1
