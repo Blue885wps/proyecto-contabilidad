@@ -407,10 +407,39 @@ try {
         throw "FALLO: se esperaban 2 asientos con montos validos y hay $cantidadMontos"
     }
     $contenidoMontos = Get-Content (Join-Path $dirMontos "data\asientos.txt") -Raw
-    if (-not $contenidoMontos.Contains("1800.5")) {
-        throw "FALLO: no se guardaron los montos normalizados"
+    if (-not $contenidoMontos.Contains("1800.50")) {
+        throw "FALLO: no se guardaron los montos normalizados a dos decimales"
     }
     Write-Host "OK: formatos de monto aceptados y rechazados"
+
+    # ------------------------------------------------------------------
+    # Monto grande: se guarda con dos decimales, sin notacion cientifica
+    # ------------------------------------------------------------------
+    $dirGrande = New-TestDir "monto_grande"
+    $cuentasGrande = @(
+        "1000|Caja|Activo|0.0",
+        "4010|Ventas|Ingreso|0.0"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $dirGrande "data\cuentas.txt") ($cuentasGrande + "`r`n")
+    Write-Utf8 (Join-Path $dirGrande "data\asientos.txt") ""
+
+    $inputGrande = Write-Input $dirGrande "input.txt" @(
+        "2", "01/06/2026", "Venta de monto grande", "1000", "1", "10000000",
+        "4010", "2", "10000000", "N", "S", "11"
+    )
+    $outGrande = Invoke-App $dirGrande $inputGrande
+    Assert-Contains $outGrande "Asiento registrado exitosamente." "monto grande registrado"
+    $contenidoGrande = Get-Content (Join-Path $dirGrande "data\asientos.txt") -Raw
+    if ($contenidoGrande.Contains("E7") -or -not $contenidoGrande.Contains("10000000.00")) {
+        throw "FALLO: el monto grande no se guardo con dos decimales"
+    }
+    Write-Host "OK: monto grande persistido sin notacion cientifica"
+
+    $inputGrande2 = Write-Input $dirGrande "input2.txt" @("4", "5", "1000", "0", "11")
+    $outGrande2 = Invoke-App $dirGrande $inputGrande2
+    Assert-Contains $outGrande2 "Total de asientos: 1" "asiento con monto grande recargado"
+    Assert-Match $outGrande2 'Saldo final:\s+10000000[.,]00' "monto grande recargado"
+    Write-Host "OK: monto grande recargado desde el archivo"
 
     # ------------------------------------------------------------------
     # Tolerancia 0.005, asiento solo al Debe, linea desconocida y 1790
@@ -529,7 +558,7 @@ try {
     if (-not $asientosCerrados.Contains("|CIERRE")) {
         throw "FALLO: el asiento de cierre no se marco con |CIERRE"
     }
-    if (-not $asientosCerrados.Contains("PARTIDA|3200|Credito|300.0")) {
+    if (-not $asientosCerrados.Contains("PARTIDA|3200|Credito|300.00")) {
         throw "FALLO: el resultado no se traslado a la cuenta 3200"
     }
     Write-Host "OK: asiento de cierre guardado y resultado trasladado"
@@ -541,16 +570,16 @@ try {
     Write-Host "OK: periodo.txt guardado con el periodo siguiente"
 
     $cuentasCerradas = Get-Content (Join-Path $dirPeriodo "data\cuentas.txt") -Raw
-    if (-not $cuentasCerradas.Contains("1000|Caja|Activo|1300.0")) {
+    if (-not $cuentasCerradas.Contains("1000|Caja|Activo|1300.00")) {
         throw "FALLO: Caja no quedo con el saldo esperado"
     }
-    if (-not $cuentasCerradas.Contains("3200|Resultados de ejercicios anteriores|Patrimonio|300.0")) {
+    if (-not $cuentasCerradas.Contains("3200|Resultados de ejercicios anteriores|Patrimonio|300.00")) {
         throw "FALLO: la cuenta 3200 no quedo con el resultado del cierre"
     }
-    if (-not $cuentasCerradas.Contains("4010|Ventas|Ingreso|0.0")) {
+    if (-not $cuentasCerradas.Contains("4010|Ventas|Ingreso|0.00")) {
         throw "FALLO: Ventas no quedo en cero tras el cierre"
     }
-    if (-not $cuentasCerradas.Contains("6010|Gastos de venta|Gasto|0.0")) {
+    if (-not $cuentasCerradas.Contains("6010|Gastos de venta|Gasto|0.00")) {
         throw "FALLO: Gastos no quedo en cero tras el cierre"
     }
     Write-Host "OK: cuentas de resultado cerradas y saldo trasladado"
@@ -600,7 +629,7 @@ try {
 
     $inputHistorico = Write-Input $dirPeriodo "input_historico.txt" @(
         "12", "2", "01/01/2026", "31/12/2026", "S", "4", "0",
-        "4", "6", "0"
+        "4", "6", "8", "0"
     )
     $outHistorico = Invoke-App $dirPeriodo $inputHistorico
     Assert-Contains $outHistorico "Vista de reportes: Historico completo" "cambio a vista historica"
@@ -608,6 +637,142 @@ try {
     Assert-Contains $outHistorico "Total de asientos: 4" "libro diario historico completo"
     Assert-Contains $outHistorico "LA BALANZA DE COMPROBACION ESTA CUADRADA." "balanza historica cuadrada"
     Assert-Match $outHistorico 'TOTALES:\s+2200[.,]00\s+2200[.,]00' "totales historicos de la balanza"
+    Assert-Contains $outHistorico "Resultado acumulado pendiente:" "etiqueta de resultado acumulado en historico"
+
+    # ------------------------------------------------------------------
+    # Cierre con centavos: montos redondeados a dos decimales
+    # ------------------------------------------------------------------
+    $dirCentavos = New-TestDir "cierre_centavos"
+    $cuentasCentavos = @(
+        "1000|Caja|Activo|0.0",
+        "3200|Resultados de ejercicios anteriores|Patrimonio|0.0",
+        "4010|Ventas|Ingreso|0.0",
+        "6010|Gastos de venta|Gasto|0.0"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $dirCentavos "data\cuentas.txt") ($cuentasCentavos + "`r`n")
+    Write-Utf8 (Join-Path $dirCentavos "data\periodo.txt") ("01/01/2026|31/12/2026" + "`r`n")
+    $asientosCentavos = @(
+        "ASIENTO|10/01/2026|Venta de diez centavos|0.10",
+        "PARTIDA|1000|Debito|0.10",
+        "PARTIDA|4010|Credito|0.10",
+        "ASIENTO|11/01/2026|Venta de veinte centavos|0.20",
+        "PARTIDA|1000|Debito|0.20",
+        "PARTIDA|4010|Credito|0.20",
+        "ASIENTO|12/01/2026|Gasto de diez centavos|0.10",
+        "PARTIDA|6010|Debito|0.10",
+        "PARTIDA|1000|Credito|0.10"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $dirCentavos "data\asientos.txt") ($asientosCentavos + "`r`n")
+
+    $inputCentavos = Write-Input $dirCentavos "input.txt" @("12", "3", "S", "0", "11")
+    $outCentavos = Invoke-App $dirCentavos $inputCentavos
+    Assert-Match $outCentavos 'Resultado:\s+0[.,]20 \(Utilidad\)' "resultado con centavos"
+    $asientosCentavosCierre = Get-Content (Join-Path $dirCentavos "data\asientos.txt") -Raw
+    if (-not $asientosCentavosCierre.Contains("PARTIDA|3200|Credito|0.20")) {
+        throw "FALLO: el resultado con centavos no se traslado redondeado a 3200"
+    }
+    if (-not $asientosCentavosCierre.Contains("PARTIDA|4010|Debito|0.30")) {
+        throw "FALLO: las ventas no se cerraron con el total redondeado"
+    }
+    $cuentasCentavosCierre = Get-Content (Join-Path $dirCentavos "data\cuentas.txt") -Raw
+    if (-not $cuentasCentavosCierre.Contains("3200|Resultados de ejercicios anteriores|Patrimonio|0.20")) {
+        throw "FALLO: la cuenta 3200 no quedo con el resultado redondeado"
+    }
+    Write-Host "OK: cierre con centavos redondeado a dos decimales"
+
+    # ------------------------------------------------------------------
+    # Cierre secuencial: no se cierra 2026 con 2025 pendiente
+    # ------------------------------------------------------------------
+    $dirOrden = New-TestDir "cierre_orden"
+    $cuentasOrden = @(
+        "1000|Caja|Activo|0.0",
+        "3000|Capital social|Patrimonio|0.0",
+        "3200|Resultados de ejercicios anteriores|Patrimonio|0.0",
+        "4010|Ventas|Ingreso|0.0"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $dirOrden "data\cuentas.txt") ($cuentasOrden + "`r`n")
+    Write-Utf8 (Join-Path $dirOrden "data\periodo.txt") ("01/01/2026|31/12/2026" + "`r`n")
+    $asientosOrden = @(
+        "ASIENTO|01/06/2025|Venta 2025|100.00",
+        "PARTIDA|1000|Debito|100.00",
+        "PARTIDA|4010|Credito|100.00",
+        "ASIENTO|01/06/2026|Venta 2026|200.00",
+        "PARTIDA|1000|Debito|200.00",
+        "PARTIDA|4010|Credito|200.00"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $dirOrden "data\asientos.txt") ($asientosOrden + "`r`n")
+
+    $inputBloqueo = Write-Input $dirOrden "input_bloqueo.txt" @("12", "3", "0", "8", "11")
+    $outBloqueo = Invoke-App $dirOrden $inputBloqueo
+    Assert-Contains $outBloqueo "No se puede cerrar: hay resultados de periodos anteriores sin cerrar." "cierre 2026 bloqueado por 2025 abierto"
+    Assert-Match $outBloqueo 'Resultado acumulado pendiente:\s+300[.,]00' "resultado acumulado pendiente"
+    $cierresBloqueo = (Get-Content (Join-Path $dirOrden "data\asientos.txt") | Select-String -Pattern "CIERRE").Count
+    if ($cierresBloqueo -ne 0) {
+        throw "FALLO: se creo un cierre fuera de orden"
+    }
+    Write-Host "OK: cierre fuera de orden bloqueado"
+
+    $inputOrden = Write-Input $dirOrden "input_orden.txt" @(
+        "12", "2", "01/01/2025", "31/12/2025", "S", "3", "S",
+        "3", "S", "0", "11"
+    )
+    $outOrden = Invoke-App $dirOrden $inputOrden
+    Assert-Contains $outOrden "Periodo cerrado. Resultado trasladado a 3200." "cierre de 2025"
+    Assert-Contains $outOrden "Nuevo periodo: 01/01/2026 al 31/12/2026" "avance a 2026"
+    Assert-Contains $outOrden "Nuevo periodo: 01/01/2027 al 31/12/2027" "avance a 2027"
+    $cierresOrden = (Get-Content (Join-Path $dirOrden "data\asientos.txt") | Select-String -Pattern "^ASIENTO.*\|CIERRE").Count
+    if ($cierresOrden -ne 2) {
+        throw "FALLO: se esperaban 2 asientos de cierre y hay $cierresOrden"
+    }
+    $linea3200 = (Get-Content (Join-Path $dirOrden "data\cuentas.txt") | Where-Object { $_ -like "3200|*" })
+    if ($linea3200 -ne "3200|Resultados de ejercicios anteriores|Patrimonio|300.00") {
+        throw "FALLO: la cuenta 3200 no acumulo exactamente 300.00: $linea3200"
+    }
+    Write-Host "OK: cierres secuenciales acumulan 300.00 en 3200"
+
+    $inputPosterior = Write-Input $dirOrden "input_posterior.txt" @(
+        "12", "2", "01/01/2024", "31/12/2024", "S", "3", "0", "11"
+    )
+    $outPosterior = Invoke-App $dirOrden $inputPosterior
+    Assert-Contains $outPosterior "No se puede cerrar: ya existe un cierre posterior." "cierre anterior bloqueado por cierre posterior"
+    Write-Host "OK: no se cierra un periodo anterior a uno ya cerrado"
+
+    # ------------------------------------------------------------------
+    # Cierre con 3200 ausente o de tipo incorrecto
+    # ------------------------------------------------------------------
+    $dir3200 = New-TestDir "cierre_3200"
+    $cuentas3200 = @(
+        "1000|Caja|Activo|0.0",
+        "3200|Resultados de ejercicios anteriores|Activo|0.0",
+        "4010|Ventas|Ingreso|0.0"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $dir3200 "data\cuentas.txt") ($cuentas3200 + "`r`n")
+    Write-Utf8 (Join-Path $dir3200 "data\periodo.txt") ("01/01/2026|31/12/2026" + "`r`n")
+    $asientos3200 = @(
+        "ASIENTO|10/01/2026|Venta del periodo|100.00",
+        "PARTIDA|1000|Debito|100.00",
+        "PARTIDA|4010|Credito|100.00"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $dir3200 "data\asientos.txt") ($asientos3200 + "`r`n")
+
+    $input3200 = Write-Input $dir3200 "input.txt" @("12", "3", "0", "11")
+    $out3200 = Invoke-App $dir3200 $input3200
+    Assert-Contains $out3200 "La cuenta 3200 no existe o no es de tipo Patrimonio." "cierre rechazado por tipo de 3200"
+    $cierres3200 = (Get-Content (Join-Path $dir3200 "data\asientos.txt") | Select-String -Pattern "CIERRE").Count
+    if ($cierres3200 -ne 0) {
+        throw "FALLO: se cerro el periodo con 3200 de tipo incorrecto"
+    }
+    Write-Host "OK: cierre rechazado por 3200 de tipo incorrecto"
+
+    $cuentasSin3200 = @(
+        "1000|Caja|Activo|0.0",
+        "4010|Ventas|Ingreso|0.0"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $dir3200 "data\cuentas.txt") ($cuentasSin3200 + "`r`n")
+    $input3200b = Write-Input $dir3200 "input2.txt" @("12", "3", "0", "11")
+    $out3200b = Invoke-App $dir3200 $input3200b
+    Assert-Contains $out3200b "La cuenta 3200 no existe o no es de tipo Patrimonio." "cierre rechazado por 3200 ausente"
+    Write-Host "OK: cierre rechazado por 3200 ausente"
 
     Write-Host ""
     Write-Host "TODAS LAS PRUEBAS PASARON."

@@ -23,36 +23,14 @@ public class Contabilidad {
     static final double TOLERANCIA = 0.005;
     static final double TOLERANCIA_SALDO = 0.005;
     static final double EPSILON = 1e-9;
-    // Catalogo estandar de 75 cuentas: codigo|nombre|tipo
+    // Catalogo estandar de 75 cuentas: codigo|nombre|tipo, separadas por ;
     static final String[] CATALOGO_ESTANDAR = {
-        "1000|Caja|Activo", "1100|Bancos|Activo", "1110|Inversiones temporales|Activo",
-        "1200|Cuentas por cobrar|Activo", "1210|Clientes|Activo", "1220|Documentos por cobrar|Activo",
-        "1230|Deudores diversos|Activo", "1300|Inventarios|Activo", "1310|Materias primas|Activo",
-        "1320|Productos terminados|Activo", "1400|Activos fijos|Activo", "1410|Mobiliario y equipo|Activo",
-        "1420|Equipo de transporte|Activo", "1430|Equipo de computo|Activo", "1500|Activos diferidos|Activo",
-        "1510|Gastos pagados por anticipado|Activo", "1520|Seguros pagados por anticipado|Activo",
-        "1600|Cuentas por cobrar a largo plazo|Activo", "1700|Propiedad, planta y equipo|Activo",
-        "1790|Depreciacion acumulada|Activo", "1800|Activos intangibles|Activo", "1890|Amortizacion acumulada|Activo",
-        "2000|Cuentas por pagar|Pasivo", "2010|Proveedores|Pasivo", "2020|Acreedores diversos|Pasivo",
-        "2100|Prestamos bancarios|Pasivo", "2110|Prestamos a corto plazo|Pasivo", "2120|Prestamos a largo plazo|Pasivo",
-        "2200|Impuestos por pagar|Pasivo", "2210|IVA por pagar|Pasivo", "2220|ISR por pagar|Pasivo",
-        "2300|Pasivos diferidos|Pasivo", "2310|Anticipos de clientes|Pasivo", "2320|Intereses cobrados por anticipado|Pasivo",
-        "2400|Pasivos por impuestos diferidos|Pasivo", "2500|Obligaciones financieras a largo plazo|Pasivo",
-        "2600|Pasivos por beneficios a empleados|Pasivo",
-        "3000|Capital social|Patrimonio", "3010|Capital aportado|Patrimonio", "3020|Capital ganado|Patrimonio",
-        "3100|Utilidades retenidas|Patrimonio", "3110|Utilidad del ejercicio|Patrimonio", "3120|Perdida del ejercicio|Patrimonio",
-        "3200|Resultados de ejercicios anteriores|Patrimonio", "3300|Reservas legales|Patrimonio",
-        "3400|Ajustes por revaluacion|Patrimonio", "3500|Dividendos decretados|Patrimonio",
-        "4000|Ingresos|Ingreso", "4010|Ventas|Ingreso", "4020|Ingresos por servicios|Ingreso",
-        "4030|Ingresos por intereses|Ingreso", "4040|Otros ingresos|Ingreso", "4050|Ingresos por alquileres|Ingreso",
-        "4060|Ingresos por comisiones|Ingreso", "4070|Ingresos por dividendos|Ingreso",
-        "5000|Costos|Costo", "5010|Costo de ventas|Costo", "5020|Costo de produccion|Costo", "5030|Costo de lo vendido|Costo",
-        "6000|Gastos|Gasto", "6010|Gastos de venta|Gasto", "6020|Gastos de administracion|Gasto",
-        "6030|Gastos financieros|Gasto", "6040|Gastos de operacion|Gasto", "6050|Sueldos y salarios|Gasto",
-        "6060|Renta|Gasto", "6070|Servicios publicos|Gasto", "6080|Depreciacion|Gasto", "6090|Amortizacion|Gasto",
-        "6100|Gastos de publicidad y mercadeo|Gasto", "6110|Gastos de mantenimiento|Gasto",
-        "6120|Gastos de seguros|Gasto", "6130|Gastos de impuestos|Gasto",
-        "6140|Gastos de capacitacion|Gasto", "6150|Gastos de viajes y representacion|Gasto"
+        "1000|Caja|Activo;1100|Bancos|Activo;1110|Inversiones temporales|Activo;1200|Cuentas por cobrar|Activo;1210|Clientes|Activo;1220|Documentos por cobrar|Activo;1230|Deudores diversos|Activo;1300|Inventarios|Activo;1310|Materias primas|Activo;1320|Productos terminados|Activo;1400|Activos fijos|Activo;1410|Mobiliario y equipo|Activo;1420|Equipo de transporte|Activo;1430|Equipo de computo|Activo;1500|Activos diferidos|Activo;1510|Gastos pagados por anticipado|Activo;1520|Seguros pagados por anticipado|Activo;1600|Cuentas por cobrar a largo plazo|Activo;1700|Propiedad, planta y equipo|Activo;1790|Depreciacion acumulada|Activo;1800|Activos intangibles|Activo;1890|Amortizacion acumulada|Activo",
+        "2000|Cuentas por pagar|Pasivo;2010|Proveedores|Pasivo;2020|Acreedores diversos|Pasivo;2100|Prestamos bancarios|Pasivo;2110|Prestamos a corto plazo|Pasivo;2120|Prestamos a largo plazo|Pasivo;2200|Impuestos por pagar|Pasivo;2210|IVA por pagar|Pasivo;2220|ISR por pagar|Pasivo;2300|Pasivos diferidos|Pasivo;2310|Anticipos de clientes|Pasivo;2320|Intereses cobrados por anticipado|Pasivo;2400|Pasivos por impuestos diferidos|Pasivo;2500|Obligaciones financieras a largo plazo|Pasivo;2600|Pasivos por beneficios a empleados|Pasivo",
+        "3000|Capital social|Patrimonio;3010|Capital aportado|Patrimonio;3020|Capital ganado|Patrimonio;3100|Utilidades retenidas|Patrimonio;3110|Utilidad del ejercicio|Patrimonio;3120|Perdida del ejercicio|Patrimonio;3200|Resultados de ejercicios anteriores|Patrimonio;3300|Reservas legales|Patrimonio;3400|Ajustes por revaluacion|Patrimonio;3500|Dividendos decretados|Patrimonio",
+        "4000|Ingresos|Ingreso;4010|Ventas|Ingreso;4020|Ingresos por servicios|Ingreso;4030|Ingresos por intereses|Ingreso;4040|Otros ingresos|Ingreso;4050|Ingresos por alquileres|Ingreso;4060|Ingresos por comisiones|Ingreso;4070|Ingresos por dividendos|Ingreso",
+        "5000|Costos|Costo;5010|Costo de ventas|Costo;5020|Costo de produccion|Costo;5030|Costo de lo vendido|Costo",
+        "6000|Gastos|Gasto;6010|Gastos de venta|Gasto;6020|Gastos de administracion|Gasto;6030|Gastos financieros|Gasto;6040|Gastos de operacion|Gasto;6050|Sueldos y salarios|Gasto;6060|Renta|Gasto;6070|Servicios publicos|Gasto;6080|Depreciacion|Gasto;6090|Amortizacion|Gasto;6100|Gastos de publicidad y mercadeo|Gasto;6110|Gastos de mantenimiento|Gasto;6120|Gastos de seguros|Gasto;6130|Gastos de impuestos|Gasto;6140|Gastos de capacitacion|Gasto;6150|Gastos de viajes y representacion|Gasto"
     };
     static List<String> cuentaCodigos = new ArrayList<>();
     static List<String> cuentaNombres = new ArrayList<>();
@@ -93,6 +71,11 @@ public class Contabilidad {
     }
     static void linea(String... textos) { for (String texto : textos) System.out.println(texto); }
     static boolean cuadra(double debe, double haber) { return Math.abs(debe - haber) <= TOLERANCIA + EPSILON; }
+    static double redondearMonto(double valor) { return Math.round(valor * 100.0) / 100.0; }
+    static String formatearMonto(double valor) {
+        if (Math.abs(valor) < TOLERANCIA) valor = 0;
+        return String.format(Locale.ROOT, "%.2f", valor);
+    }
     static boolean tipoDeudor(String tipoCuenta) { return tipoCuenta.equals("Activo") || tipoCuenta.equals("Costo") || tipoCuenta.equals("Gasto"); }
     static boolean esCuentaContraria(String codigo) {
         return codigo.equals("1790") || codigo.equals("1890") || codigo.equals("3120")
@@ -104,10 +87,6 @@ public class Contabilidad {
             if (tips.get(i).equalsIgnoreCase(lado)) total += mons.get(i);
         }
         return total;
-    }
-    static void agregarAsiento(String fecha, String descripcion, List<String> cods,
-            List<String> tips, List<Double> mons, double total) {
-        agregarAsiento(fecha, descripcion, cods, tips, mons, total, "NORMAL");
     }
     static void agregarAsiento(String fecha, String descripcion, List<String> cods,
             List<String> tips, List<Double> mons, double total, String tipo) {
@@ -210,6 +189,15 @@ public class Contabilidad {
     static void cerrarPeriodo() {
         System.out.println("\n--- CERRAR PERIODO ---");
         if (periodoContieneCierre(periodoInicio, periodoFin)) { System.out.println("El periodo ya esta cerrado."); return; }
+        for (int i = 0; i < asientoFechas.size(); i++)
+            if (esCierre(i) && fechaOrdenable(asientoFechas.get(i)).compareTo(fechaOrdenable(periodoFin)) > 0) {
+                System.out.println("No se puede cerrar: ya existe un cierre posterior. Cierre los periodos en orden cronologico.");
+                return;
+            }
+        if (hayNominalesConSaldo(saldosRango(FECHA_MIN, diaAnterior(periodoInicio), false))) {
+            System.out.println("No se puede cerrar: hay resultados de periodos anteriores sin cerrar. Cierre primero el periodo mas antiguo.");
+            return;
+        }
         List<Double> saldos = saldosRango(FECHA_MIN, periodoFin, false);
         List<String> cods = new ArrayList<>(), tips = new ArrayList<>();
         List<Double> mons = new ArrayList<>();
@@ -217,35 +205,30 @@ public class Contabilidad {
         for (int i = 0; i < cuentaCodigos.size(); i++) {
             String tipo = cuentaTipos.get(i);
             if (!tipo.equals("Ingreso") && !tipo.equals("Costo") && !tipo.equals("Gasto")) continue;
-            double saldo = saldos.get(i);
-            if (Math.abs(saldo) <= TOLERANCIA) continue;
-            String lado = ladoCierre(tipo, saldo);
-            double monto = Math.abs(saldo);
+            double monto = redondearMonto(Math.abs(saldos.get(i)));
+            if (monto == 0) continue;
+            String lado = ladoCierre(tipo, saldos.get(i));
             cods.add(cuentaCodigos.get(i)); tips.add(lado); mons.add(monto);
             if (lado.equals("Debito")) totalDebe += monto; else totalHaber += monto;
         }
         if (cods.isEmpty()) { System.out.println("No hay resultados pendientes de cierre en el periodo."); return; }
-        double resultado = resultadoDeSaldos(saldos), diferencia = totalDebe - totalHaber;
-        if (!cuadra(resultado, diferencia)) {
-            System.out.println("ADVERTENCIA: no se pudo calcular el cierre con exactitud. Operacion cancelada."); return;
-        }
-        if (Math.abs(diferencia) > TOLERANCIA) {
-            if (!existeCuenta(CUENTA_RESULTADOS_ANTERIORES)) {
-                System.out.println("No existe la cuenta " + CUENTA_RESULTADOS_ANTERIORES
-                        + " para trasladar el resultado. Cree la cuenta y vuelva a intentarlo."); return;
+        double resultado = redondearMonto(totalDebe - totalHaber);
+        if (Math.abs(resultado) > TOLERANCIA) {
+            int idx3200 = indiceCuenta(CUENTA_RESULTADOS_ANTERIORES);
+            if (idx3200 < 0 || !cuentaTipos.get(idx3200).equals("Patrimonio")) {
+                System.out.println("La cuenta " + CUENTA_RESULTADOS_ANTERIORES
+                        + " no existe o no es de tipo Patrimonio. Corrija el catalogo y vuelva a intentarlo."); return;
             }
             cods.add(CUENTA_RESULTADOS_ANTERIORES);
-            tips.add(diferencia > 0 ? "Credito" : "Debito"); mons.add(Math.abs(diferencia));
-            if (diferencia > 0) totalHaber += diferencia; else totalDebe += -diferencia;
+            tips.add(resultado > 0 ? "Credito" : "Debito"); mons.add(Math.abs(resultado));
+            if (resultado > 0) totalHaber += resultado; else totalDebe += -resultado;
         }
         if (!cuadra(totalDebe, totalHaber)) { System.out.println("Error interno: el asiento de cierre no cuadra."); return; }
-        if (hayNominalesConSaldo(saldosRango(FECHA_MIN, diaAnterior(periodoInicio), false)))
-            System.out.println("AVISO: el cierre incluira resultados de periodos anteriores sin cerrar.");
         linea("\n--- RESUMEN DEL CIERRE ---", "Periodo: " + periodoInicio + " al " + periodoFin,
                 "Resultado: " + (Math.abs(resultado) <= TOLERANCIA ? "0.00"
-                        : String.format("%.2f (%s)", Math.abs(resultado), resultado > 0 ? "Utilidad" : "Perdida")),
-                "Cuentas de resultado cerradas: " + (cods.size() - (Math.abs(diferencia) > TOLERANCIA ? 1 : 0)),
-                "Total del asiento: " + String.format("%.2f", totalDebe));
+                        : formatearMonto(Math.abs(resultado)) + " (" + (resultado > 0 ? "Utilidad" : "Perdida") + ")"),
+                "Cuentas de resultado cerradas: " + (cods.size() - (Math.abs(resultado) > TOLERANCIA ? 1 : 0)),
+                "Total del asiento: " + formatearMonto(totalDebe));
         if (!confirmar("Cerrar el periodo y trasladar el resultado a " + CUENTA_RESULTADOS_ANTERIORES + "? (S/N): ")) {
             System.out.println("Cierre cancelado."); return;
         }
@@ -356,9 +339,10 @@ public class Contabilidad {
         advertirSaldosContrarios();
     }
     static void inicializarCuentas() {
-        for (String linea : CATALOGO_ESTANDAR) {
-            String[] partes = linea.split("\\|"); agregarCuenta(partes[0], partes[1], partes[2]);
-        }
+        for (String grupo : CATALOGO_ESTANDAR)
+            for (String linea : grupo.split(";")) {
+                String[] partes = linea.split("\\|"); agregarCuenta(partes[0], partes[1], partes[2]);
+            }
         if (!guardarCuentas()) System.out.println("ADVERTENCIA: no se pudo guardar el catalogo inicial.");
     }
     static void agregarCuenta(String codigo, String nombre, String tipo) {
@@ -371,7 +355,7 @@ public class Contabilidad {
             contenido.append(limpiarCampo(cuentaCodigos.get(i))).append('|')
                     .append(limpiarCampo(cuentaNombres.get(i))).append('|')
                     .append(limpiarCampo(cuentaTipos.get(i))).append('|')
-                    .append(cuentaSaldos.get(i)).append(System.lineSeparator());
+                    .append(formatearMonto(cuentaSaldos.get(i))).append(System.lineSeparator());
         }
         return escribirArchivoAtomico(ARCHIVO_CUENTAS, contenido.toString());
     }
@@ -451,14 +435,14 @@ public class Contabilidad {
         StringBuilder contenido = new StringBuilder();
         for (int i = 0; i < asientoFechas.size(); i++) {
             contenido.append("ASIENTO|").append(limpiarCampo(asientoFechas.get(i))).append('|')
-                    .append(limpiarCampo(asientoDescripciones.get(i))).append('|').append(asientoTotales.get(i));
+                    .append(limpiarCampo(asientoDescripciones.get(i))).append('|').append(formatearMonto(asientoTotales.get(i)));
             if (esCierre(i)) contenido.append("|CIERRE");
             contenido.append(System.lineSeparator());
             List<String> cods = partidaCodigos.get(i), tips = partidaTipos.get(i);
             List<Double> mons = partidaMontos.get(i);
             for (int j = 0; j < cods.size(); j++)
                 contenido.append("PARTIDA|").append(limpiarCampo(cods.get(j))).append('|')
-                        .append(limpiarCampo(tips.get(j))).append('|').append(mons.get(j)).append(System.lineSeparator());
+                        .append(limpiarCampo(tips.get(j))).append('|').append(formatearMonto(mons.get(j))).append(System.lineSeparator());
         }
         return escribirArchivoAtomico(ARCHIVO_ASIENTOS, contenido.toString());
     }
@@ -701,7 +685,7 @@ public class Contabilidad {
         System.out.printf("%-54s %12.2f%n", "TOTAL DEBE:", totales[0]);
         System.out.printf("%-54s %12.2f%n", "TOTAL HABER:", totales[1]);
         if (!confirmar("Guardar el asiento? (S/N): ")) { System.out.println("Asiento cancelado. No se guardo nada."); return; }
-        agregarAsiento(fecha, descripcion, cods, tips, mons, totales[0]);
+        agregarAsiento(fecha, descripcion, cods, tips, mons, totales[0], "NORMAL");
         recalcularSaldos();
         if (!guardarAsientos()) { quitarUltimoAsiento(); recalcularSaldos(); System.out.println("No se pudo guardar el asiento. No se registro."); return; }
         if (!guardarCuentas()) {
@@ -1045,7 +1029,6 @@ public class Contabilidad {
         double saldo = saldoInicial + totalDebe - totalHaber;
         double saldoNormal = tipoDeudor(tipoCuenta) ? saldo : -saldo;
         String etiqueta = etiquetaSaldo(saldoNormal, tipoCuenta);
-        if (etiqueta.equals("Cero")) saldo = 0;
         System.out.printf("%63s SALDO: %.2f (%s)%n", "", Math.abs(saldo), etiqueta);
         if (!esCuentaContraria(codigo) && saldoNormal < -TOLERANCIA_SALDO)
             System.out.println("  AVISO: saldo en el lado contrario al normal para una cuenta de tipo " + tipoCuenta + ".");
@@ -1088,8 +1071,9 @@ public class Contabilidad {
         double totalActivo = mostrarSeccion("Activo", "ACTIVO", saldos);
         double totalPasivo = mostrarSeccion("Pasivo", "PASIVO", saldos), totalPatrimonio = mostrarSeccion("Patrimonio", "PATRIMONIO", saldos);
         double resultado = resultadoDeSaldos(saldos), patrimonioConResultado = totalPatrimonio + resultado;
-        System.out.println("\n-- RESULTADO DEL PERIODO --");
-        System.out.printf("%-44s %12.2f%n", "Resultado del periodo:", resultado);
+        boolean hayAnteriores = verHistorico || hayNominalesConSaldo(saldosRango(FECHA_MIN, diaAnterior(vistaInicio()), false));
+        System.out.println("\n-- RESULTADO --");
+        System.out.printf("%-44s %12.2f%n", hayAnteriores ? "Resultado acumulado pendiente:" : "Resultado del periodo:", resultado);
         System.out.println("\n" + "-".repeat(60));
         System.out.printf("Total Pasivo + Patrimonio + Resultado: %.2f%n", totalPasivo + patrimonioConResultado);
         System.out.printf("Diferencia: %.2f%n", totalActivo - (totalPasivo + patrimonioConResultado));
@@ -1127,7 +1111,8 @@ public class Contabilidad {
                 "  de naturaleza contraria o un error de registro.");
     }
     static boolean guardarBalance(String fecha, double activo, double pasivo, double patrimonio) {
-        String contenido = fecha + "|" + activo + "|" + pasivo + "|" + patrimonio + System.lineSeparator();
+        String contenido = fecha + "|" + formatearMonto(activo) + "|" + formatearMonto(pasivo) + "|"
+                + formatearMonto(patrimonio) + System.lineSeparator();
         return escribirArchivoAtomico(ARCHIVO_BALANCE, contenido);
     }
     static void buscarCuenta() {
@@ -1303,7 +1288,7 @@ public class Contabilidad {
         System.out.println("Respaldo creado en: " + carpeta.getPath());
         System.out.println("Archivos copiados: " + copiados + ".");
     }
-    static String leerString(String mensaje) {
+    static String leerEntrada(String mensaje) {
         while (true) {
             System.out.print(mensaje);
             String entrada = scanner.nextLine().trim();
@@ -1311,16 +1296,11 @@ public class Contabilidad {
             System.out.println("La entrada no puede estar vacia.");
         }
     }
+    static String leerString(String mensaje) { return leerEntrada(mensaje); }
     static int leerInt(String mensaje, int minimo, int maximo) {
         while (true) {
             try {
-                System.out.print(mensaje);
-                String entrada = scanner.nextLine().trim();
-                if (entrada.isEmpty()) {
-                    System.out.println("La entrada no puede estar vacia.");
-                    continue;
-                }
-                int valor = Integer.parseInt(entrada);
+                int valor = Integer.parseInt(leerEntrada(mensaje));
                 if (valor >= minimo && valor <= maximo) return valor;
                 System.out.println("Opcion invalida. Debe estar entre " + minimo + " y " + maximo + ".");
             } catch (NumberFormatException e) {
@@ -1331,13 +1311,7 @@ public class Contabilidad {
     static double leerDouble(String mensaje) {
         while (true) {
             try {
-                System.out.print(mensaje);
-                String entrada = scanner.nextLine().trim();
-                if (entrada.isEmpty()) {
-                    System.out.println("La entrada no puede estar vacia.");
-                    continue;
-                }
-                double valor = parsearMonto(entrada);
+                double valor = parsearMonto(leerEntrada(mensaje));
                 if (!Double.isFinite(valor) || valor <= 0) {
                     System.out.println("El monto debe ser un numero mayor que cero.");
                     continue;
