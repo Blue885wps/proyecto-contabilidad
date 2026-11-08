@@ -29,6 +29,14 @@ function Assert-NotContains {
     Write-Host "OK: $Name"
 }
 
+function Assert-Match {
+    param([string]$Text, [string]$Pattern, [string]$Name)
+    if ($Text -notmatch $Pattern) {
+        throw "FALLO: $Name. No se encontro el patron: $Pattern"
+    }
+    Write-Host "OK: $Name"
+}
+
 function New-TestDir {
     param([string]$Name)
     $dir = Join-Path $temp $Name
@@ -43,7 +51,7 @@ function Invoke-App {
     param([string]$Dir, [string]$InputFile)
     Push-Location $Dir
     try {
-        cmd /c "java -Dfile.encoding=UTF-8 -cp bin Contabilidad < $InputFile > output.txt 2>&1"
+        cmd /c "java -Dfile.encoding=UTF-8 -Duser.language=es -Duser.country=ES -cp bin Contabilidad < $InputFile > output.txt 2>&1"
         if ($LASTEXITCODE -ne 0) {
             throw "Java termino con codigo $LASTEXITCODE en $Dir"
         }
@@ -147,6 +155,18 @@ try {
     }
     Write-Host "OK: columnas Deudor y Acreedor con totales"
     Assert-Contains $out "Utilidad neta:" "estado de resultados"
+    Assert-Match $out 'TOTAL INGRESOS:\s+3500[.,]50' "total de ingresos exacto"
+    Assert-Match $out 'TOTAL GASTOS:\s+200[.,]00' "total de gastos exacto"
+    Assert-Match $out 'Utilidad bruta:\s+3500[.,]50' "utilidad bruta exacta"
+    Assert-Match $out 'Utilidad neta:\s+3300[.,]50' "utilidad neta exacta"
+    Assert-Match $out 'TOTAL ACTIVO:\s+3300[.,]50' "total activo exacto"
+    Assert-Match $out 'TOTAL PASIVO:\s+0[.,]00' "total pasivo exacto"
+    Assert-Match $out 'TOTAL PATRIMONIO:\s+0[.,]00' "total patrimonio exacto"
+    Assert-Match $out 'Resultado del ejercicio:\s+3300[.,]50' "resultado del ejercicio exacto"
+    Assert-Match $out 'Total Pasivo \+ Patrimonio \+ Resultado:\s+3300[.,]50' "ecuacion del balance exacta"
+    Assert-Match $out 'Diferencia:\s+0[.,]00' "diferencia del balance en cero"
+    Assert-Match $out 'TOTALES:\s+3700[.,]50\s+3700[.,]50' "totales de la balanza exactos"
+    Assert-Match $out 'Saldo final:\s+2800[.,]50' "saldo final de caja exacto"
     Assert-Contains $out "EL BALANCE CUADRA CORRECTAMENTE." "balance general"
     Assert-Contains $out "Gasto de renta" "busqueda de asientos"
     Assert-Contains $out "Respaldo creado en: backup\manual_" "respaldo manual"
@@ -178,10 +198,27 @@ try {
     Write-Host "OK: asientos guardados y descuadre corregido"
 
     $balance = Get-Content (Join-Path $dir "data\balance.txt") -Raw
-    if (($balance.Trim().Split("|")).Count -ne 4) {
+    $camposBalance = $balance.Trim().Split("|")
+    if ($camposBalance.Count -ne 4) {
         throw "FALLO: balance.txt no tiene 4 campos"
     }
-    Write-Host "OK: balance.txt generado"
+    if ($camposBalance[0] -notmatch '^\d{2}/\d{2}/\d{4}$') {
+        throw "FALLO: balance.txt no guarda una fecha valida"
+    }
+    $inv = [System.Globalization.CultureInfo]::InvariantCulture
+    $activoBalance = [double]::Parse($camposBalance[1], $inv)
+    $pasivoBalance = [double]::Parse($camposBalance[2], $inv)
+    $patrimonioBalance = [double]::Parse($camposBalance[3], $inv)
+    if ([Math]::Abs($activoBalance - 3300.5) -gt 0.001) {
+        throw "FALLO: balance.txt guardo un activo incorrecto: $activoBalance"
+    }
+    if ([Math]::Abs($pasivoBalance - 0.0) -gt 0.001) {
+        throw "FALLO: balance.txt guardo un pasivo incorrecto: $pasivoBalance"
+    }
+    if ([Math]::Abs($patrimonioBalance - 3300.5) -gt 0.001) {
+        throw "FALLO: balance.txt guardo un patrimonio+resultado incorrecto: $patrimonioBalance"
+    }
+    Write-Host "OK: balance.txt generado con valores exactos"
 
     $respaldo = Get-ChildItem (Join-Path $dir "backup") -Directory -Filter "manual_*" | Select-Object -First 1
     if ($null -eq $respaldo) {
@@ -348,7 +385,7 @@ try {
     Write-Host "OK: formatos de monto aceptados y rechazados"
 
     # ------------------------------------------------------------------
-    # Tolerancia 0.01, asiento solo al Debe, linea desconocida y 1790
+    # Tolerancia 0.005, asiento solo al Debe, linea desconocida y 1790
     # ------------------------------------------------------------------
     $dirAuditoria = New-TestDir "auditoria"
     $cuentasAuditoria = @(
@@ -359,10 +396,10 @@ try {
     Write-Utf8 (Join-Path $dirAuditoria "data\cuentas.txt") ($cuentasAuditoria + "`r`n")
 
     $asientosAuditoria = @(
-        "ASIENTO|01/01/2026|Tolerancia exacta|100.01",
+        "ASIENTO|01/01/2026|Diferencia de un centavo|100.01",
         "PARTIDA|1000|Debito|100.01",
         "PARTIDA|4010|Credito|100.00",
-        "ASIENTO|02/01/2026|Fuera de tolerancia|100.00",
+        "ASIENTO|02/01/2026|Diferencia de dos centavos|100.00",
         "PARTIDA|1000|Debito|100.02",
         "PARTIDA|4010|Credito|100.00",
         "ASIENTO|03/01/2026|Solo debito|200.00",
@@ -381,12 +418,12 @@ try {
     $inputAuditoria = Write-Input $dirAuditoria "input.txt" @("4", "11")
     $outAuditoria = Invoke-App $dirAuditoria $inputAuditoria
 
-    Assert-Contains $outAuditoria "Carga de asientos: 2 validos, 3 omitidos." "tolerancia y errores de carga"
-    Assert-Contains $outAuditoria "Tolerancia exacta" "asiento con diferencia de 0.01 aceptado"
-    Assert-Contains $outAuditoria "no cuadra" "asiento con diferencia de 0.02 rechazado"
+    Assert-Contains $outAuditoria "Carga de asientos: 1 validos, 4 omitidos." "tolerancia y errores de carga"
+    Assert-NotContains $outAuditoria "Diferencia de un centavo" "asiento con diferencia de 0.01 rechazado"
+    Assert-Contains $outAuditoria "no cuadra" "asientos descuadrados rechazados"
     Assert-Contains $outAuditoria "debe tener al menos una partida al Debe y una al Haber" "asiento solo al Debe rechazado"
     Assert-Contains $outAuditoria "linea desconocida en linea 12" "linea desconocida invalida el asiento"
-    Assert-NotContains $outAuditoria "Fuera de tolerancia" "asiento fuera de tolerancia omitido"
+    Assert-NotContains $outAuditoria "Diferencia de dos centavos" "asiento con diferencia de 0.02 omitido"
     Assert-NotContains $outAuditoria "AVISO: cuentas con saldo en el lado contrario a su tipo:" "cuenta 1790 sin aviso falso"
     Write-Host "OK: auditoria de tolerancia, solo Debe, linea desconocida y 1790"
 

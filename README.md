@@ -10,6 +10,9 @@ reportes basicos. Los datos se guardan en archivos de texto plano dentro de
 - Java 11 o superior (`java` y `javac` en el PATH).
 - Windows PowerShell para el script de pruebas incluido.
 
+El enunciado original pide C#, pero el docente autorizo el uso de Java para esta
+entrega. Conservar esa autorizacion para la defensa.
+
 ## Compilar y ejecutar
 
 Desde la carpeta del proyecto:
@@ -164,7 +167,19 @@ configurable.
 - **Balance general (8):** activo, pasivo, patrimonio y resultado del ejercicio;
   verifica `Activo = Pasivo + Patrimonio + Resultado`.
 
-El balance general guarda la fecha de generacion en `data/balance.txt`.
+El balance general guarda la fecha de generacion en `data/balance.txt`. El
+tercer campo de ese archivo es el patrimonio mas el resultado del ejercicio.
+
+### Criterios contables
+
+- El resultado del ejercicio se calcula como `Ingresos - Costos - Gastos`.
+- El balance general verifica `Activo = Pasivo + Patrimonio + Resultado`.
+- Las cuentas `3110` y `3120` son cuentas de cierre. El sistema calcula el
+  resultado desde las cuentas de Ingreso, Costo y Gasto; no registre el
+  resultado manualmente en `3110` o `3120` para evitar un doble conteo.
+- Las cuentas contrarias estandar `1790`, `1890`, `3120` y `3500` no generan el
+  aviso de saldo en el lado contrario. Una cuenta contraria personalizada puede
+  mostrar ese aviso, pero los calculos siguen siendo correctos.
 
 ## Respaldos
 
@@ -188,14 +203,14 @@ hacia `data/`.
 data/
   cuentas.txt    Catalogo: codigo|nombre|tipo|saldo
   asientos.txt   Asientos y partidas (fuente de verdad)
-  balance.txt    Ultimo balance generado: fecha|activo|pasivo|patrimonio
+  balance.txt    Ultimo balance generado: fecha|activo|pasivo|patrimonio+resultado
 ```
 
 - `asientos.txt` es la fuente de verdad; los saldos se recalculan desde ahi al
   iniciar.
 - Al iniciar, `asientos.txt` se valida: fecha real, al menos dos partidas (una
   al Debe y una al Haber), cuentas existentes, montos validos y Debe = Haber con
-  tolerancia de 0.01. Si un asiento es invalido, se omite completo y se informa
+  tolerancia de 0.005. Si un asiento es invalido, se omite completo y se informa
   el motivo. Una linea desconocida dentro de un asiento tambien lo invalida.
 - Si `asientos.txt` no se puede leer, el programa informa el error y bloquea el
   guardado para no sobrescribir el archivo.
@@ -211,7 +226,7 @@ data/
 El script `tests/pruebas_fase_d.ps1` compila el proyecto y ejecuta pruebas sobre
 copias temporales de los datos. No toca `data/` ni `backup/` reales. Incluye
 pruebas del libro diario clasico, la carga de asientos invalidos, la tolerancia
-de 0.01, los montos estrictos, las lineas desconocidas dentro de un asiento, la
+de 0.005, los montos estrictos, las lineas desconocidas dentro de un asiento, la
 exencion de cuentas contrarias como `1790`, las columnas Deudor/Acreedor de la
 balanza y el bloqueo de guardado cuando falla la lectura de asientos.
 

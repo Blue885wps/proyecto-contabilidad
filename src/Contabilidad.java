@@ -15,7 +15,7 @@ public class Contabilidad {
     static final DateTimeFormatter FORMATO_FECHA_ESTRICTA = DateTimeFormatter.ofPattern("dd/MM/uuuu")
             .withResolverStyle(ResolverStyle.STRICT);
     static final DateTimeFormatter FORMATO_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS");
-    static final double TOLERANCIA = 0.01;
+    static final double TOLERANCIA = 0.005;
     static final double TOLERANCIA_SALDO = 0.005;
     static final double EPSILON = 1e-9;
     // Catalogo estandar de 75 cuentas: codigo|nombre|tipo
@@ -893,7 +893,7 @@ public class Contabilidad {
         mostrarNotaSaldosContrarios();
     }
     static void generarBalance() {
-        linea("\n=== BALANCE GENERAL ===", "Balance al " + fechaActual());
+        linea("\n=== BALANCE GENERAL ===", "Historico completo", "Generado: " + fechaActual());
         System.out.printf("%-8s %-35s %12s%n", "Codigo", "Nombre", "Saldo");
         System.out.println("-".repeat(60));
         saldoContrarioEnReporte = false;
