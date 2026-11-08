@@ -150,13 +150,15 @@ completo.
 Todos los reportes usan el historico completo de asientos; no hay periodo
 configurable.
 
-- **Libro diario (4):** cada asiento con fecha, descripcion, cuentas, columnas
-  de Debe y Haber, y totales. Los asientos se ordenan por fecha y conservan su
-  numero original. Al final se muestra el total general de Debe y Haber.
+- **Libro diario (4):** formato clasico `Cta | Detalle | Parcial | Debe | Haber`.
+  Cada asiento se numera, muestra primero las partidas del Debe y luego las del
+  Haber con el prefijo `A `, deja vacia la columna `Parcial` y coloca la fecha y
+  la descripcion al pie. Los asientos se ordenan por fecha y conservan su numero
+  original. Al final se muestra un unico `TOTAL GENERAL`.
 - **Libro mayor (5):** movimientos de una cuenta ordenados por fecha y saldo
   acumulado.
-- **Balanza de comprobacion (6):** debitos, creditos y saldo por cuenta; verifica
-  que el total de debitos sea igual al de creditos.
+- **Balanza de comprobacion (6):** debitos, creditos, deudor y acreedor por
+  cuenta; verifica que el total de debitos sea igual al de creditos.
 - **Estado de resultados (7):** ingresos, costos y gastos; utilidad bruta y
   utilidad neta.
 - **Balance general (8):** activo, pasivo, patrimonio y resultado del ejercicio;
@@ -191,9 +193,12 @@ data/
 
 - `asientos.txt` es la fuente de verdad; los saldos se recalculan desde ahi al
   iniciar.
-- Al iniciar, `asientos.txt` se valida: fecha real, al menos dos partidas,
-  cuentas existentes, montos validos y Debe = Haber. Si un asiento es invalido,
-  se omite completo y se informa el motivo.
+- Al iniciar, `asientos.txt` se valida: fecha real, al menos dos partidas (una
+  al Debe y una al Haber), cuentas existentes, montos validos y Debe = Haber con
+  tolerancia de 0.01. Si un asiento es invalido, se omite completo y se informa
+  el motivo. Una linea desconocida dentro de un asiento tambien lo invalida.
+- Si `asientos.txt` no se puede leer, el programa informa el error y bloquea el
+  guardado para no sobrescribir el archivo.
 - `cuentas.txt` exige codigo y nombre no vacios, tipo valido y saldo numerico.
 - Si se omiten cuentas o asientos invalidos, el programa guarda una copia del
   archivo original en `backup/` antes de reescribirlo.
@@ -205,8 +210,10 @@ data/
 
 El script `tests/pruebas_fase_d.ps1` compila el proyecto y ejecuta pruebas sobre
 copias temporales de los datos. No toca `data/` ni `backup/` reales. Incluye
-pruebas del libro diario detallado, la carga de asientos invalidos y la
-advertencia por saldo en el lado contrario.
+pruebas del libro diario clasico, la carga de asientos invalidos, la tolerancia
+de 0.01, los montos estrictos, las lineas desconocidas dentro de un asiento, la
+exencion de cuentas contrarias como `1790`, las columnas Deudor/Acreedor de la
+balanza y el bloqueo de guardado cuando falla la lectura de asientos.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tests/pruebas_fase_d.ps1

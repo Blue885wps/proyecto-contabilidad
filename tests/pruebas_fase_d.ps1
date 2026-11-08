@@ -21,6 +21,14 @@ function Assert-Contains {
     Write-Host "OK: $Name"
 }
 
+function Assert-NotContains {
+    param([string]$Text, [string]$Unexpected, [string]$Name)
+    if ($Text.Contains($Unexpected)) {
+        throw "FALLO: $Name. Se encontro: $Unexpected"
+    }
+    Write-Host "OK: $Name"
+}
+
 function New-TestDir {
     param([string]$Name)
     $dir = Join-Path $temp $Name
@@ -120,10 +128,24 @@ try {
     Assert-Contains $out "Asiento cancelado. No se guardo nada." "asiento cancelado"
     Assert-Contains $out "CUENTA T: 1000 - Caja (Activo)" "cuenta T"
     Assert-Contains $out "Total de asientos: 6" "libro diario"
-    Assert-Contains $out "Codigo Cuenta" "libro diario detallado"
+    Assert-Contains $out "Detalle" "libro diario detallado"
+    Assert-Contains $out "Parcial" "columna parcial del libro diario"
+    Assert-Contains $out "A Ventas" "credito con prefijo A en libro diario"
+    Assert-Contains $out "01/01/2026 Venta de mercaderia" "fecha y descripcion al pie del asiento"
     Assert-Contains $out "TOTAL GENERAL" "total general del libro diario"
     Assert-Contains $out "CUENTA: 1000 - Caja" "libro mayor"
     Assert-Contains $out "LA BALANZA DE COMPROBACION ESTA CUADRADA." "balanza cuadrada"
+    Assert-Contains $out "Debitos" "columna debitos de la balanza"
+    Assert-Contains $out "Creditos" "columna creditos de la balanza"
+    Assert-Contains $out "Deudor" "columna deudor de la balanza"
+    Assert-Contains $out "Acreedor" "columna acreedor de la balanza"
+    $lineaBalanza = ($out -split "`r?`n") | Where-Object {
+        $_ -match '^1000\s+Caja\s' -and ([regex]::Matches($_, '\d+[.,]\d{2}\b')).Count -eq 4
+    }
+    if (-not $lineaBalanza) {
+        throw "FALLO: la balanza no muestra los totales de Caja en Deudor/Acreedor"
+    }
+    Write-Host "OK: columnas Deudor y Acreedor con totales"
     Assert-Contains $out "Utilidad neta:" "estado de resultados"
     Assert-Contains $out "EL BALANCE CUADRA CORRECTAMENTE." "balance general"
     Assert-Contains $out "Gasto de renta" "busqueda de asientos"
@@ -293,6 +315,100 @@ try {
     Assert-Contains $outReportes "lado contrario al normal para una cuenta de tipo Activo" "nota en cuenta T"
     Assert-Contains $outReportes "Saldo en el lado contrario al normal" "nota en balance general"
     Write-Host "OK: reportes marcan el saldo contrario"
+
+    # ------------------------------------------------------------------
+    # Montos estrictos: formatos aceptados y rechazados
+    # ------------------------------------------------------------------
+    $dirMontos = New-TestDir "montos"
+    $cuentasMontos = @(
+        "1000|Caja|Activo|0.0",
+        "4010|Ventas|Ingreso|0.0"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $dirMontos "data\cuentas.txt") ($cuentasMontos + "`r`n")
+    Write-Utf8 (Join-Path $dirMontos "data\asientos.txt") ""
+
+    $inputMontos = Write-Input $dirMontos "input.txt" @(
+        "2", "", "Montos estrictos", "1000", "1", "1.800", "1.2.3", "1800",
+        "4010", "2", "1,800.505", "1800", "N", "S",
+        "2", "", "Formato con coma de miles", "1000", "1", "1,800.50",
+        "4010", "2", "1800.50", "N", "S", "11"
+    )
+    $outMontos = Invoke-App $dirMontos $inputMontos
+    Assert-Contains $outMontos "Monto invalido: hay mas de dos decimales o el separador es ambiguo." "monto con tres decimales rechazado"
+    Assert-Contains $outMontos "Monto invalido. Use solo numeros y coma o punto decimal" "monto con separadores invalidos rechazado"
+    Assert-Contains $outMontos "Asiento registrado exitosamente." "montos validos aceptados"
+    $cantidadMontos = (Get-Content (Join-Path $dirMontos "data\asientos.txt") | Select-String -Pattern "^ASIENTO").Count
+    if ($cantidadMontos -ne 2) {
+        throw "FALLO: se esperaban 2 asientos con montos validos y hay $cantidadMontos"
+    }
+    $contenidoMontos = Get-Content (Join-Path $dirMontos "data\asientos.txt") -Raw
+    if (-not $contenidoMontos.Contains("1800.5")) {
+        throw "FALLO: no se guardaron los montos normalizados"
+    }
+    Write-Host "OK: formatos de monto aceptados y rechazados"
+
+    # ------------------------------------------------------------------
+    # Tolerancia 0.01, asiento solo al Debe, linea desconocida y 1790
+    # ------------------------------------------------------------------
+    $dirAuditoria = New-TestDir "auditoria"
+    $cuentasAuditoria = @(
+        "1000|Caja|Activo|0.0",
+        "1790|Depreciacion acumulada|Activo|0.0",
+        "4010|Ventas|Ingreso|0.0"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $dirAuditoria "data\cuentas.txt") ($cuentasAuditoria + "`r`n")
+
+    $asientosAuditoria = @(
+        "ASIENTO|01/01/2026|Tolerancia exacta|100.01",
+        "PARTIDA|1000|Debito|100.01",
+        "PARTIDA|4010|Credito|100.00",
+        "ASIENTO|02/01/2026|Fuera de tolerancia|100.00",
+        "PARTIDA|1000|Debito|100.02",
+        "PARTIDA|4010|Credito|100.00",
+        "ASIENTO|03/01/2026|Solo debito|200.00",
+        "PARTIDA|1000|Debito|100.00",
+        "PARTIDA|4010|Debito|100.00",
+        "ASIENTO|04/01/2026|Linea desconocida|100.00",
+        "PARTIDA|1000|Debito|100.00",
+        "BASURA|esto no pertenece al asiento",
+        "PARTIDA|4010|Credito|100.00",
+        "ASIENTO|05/01/2026|Depreciacion|100.00",
+        "PARTIDA|1000|Debito|100.00",
+        "PARTIDA|1790|Credito|100.00"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $dirAuditoria "data\asientos.txt") ($asientosAuditoria + "`r`n")
+
+    $inputAuditoria = Write-Input $dirAuditoria "input.txt" @("4", "11")
+    $outAuditoria = Invoke-App $dirAuditoria $inputAuditoria
+
+    Assert-Contains $outAuditoria "Carga de asientos: 2 validos, 3 omitidos." "tolerancia y errores de carga"
+    Assert-Contains $outAuditoria "Tolerancia exacta" "asiento con diferencia de 0.01 aceptado"
+    Assert-Contains $outAuditoria "no cuadra" "asiento con diferencia de 0.02 rechazado"
+    Assert-Contains $outAuditoria "debe tener al menos una partida al Debe y una al Haber" "asiento solo al Debe rechazado"
+    Assert-Contains $outAuditoria "linea desconocida en linea 12" "linea desconocida invalida el asiento"
+    Assert-NotContains $outAuditoria "Fuera de tolerancia" "asiento fuera de tolerancia omitido"
+    Assert-NotContains $outAuditoria "AVISO: cuentas con saldo en el lado contrario a su tipo:" "cuenta 1790 sin aviso falso"
+    Write-Host "OK: auditoria de tolerancia, solo Debe, linea desconocida y 1790"
+
+    # ------------------------------------------------------------------
+    # Fallo de lectura de asientos.txt: no se sobrescribe el archivo
+    # ------------------------------------------------------------------
+    $dirLectura = New-TestDir "lectura"
+    $cuentasLectura = @(
+        "1000|Caja|Activo|0.0",
+        "4010|Ventas|Ingreso|0.0"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $dirLectura "data\cuentas.txt") ($cuentasLectura + "`r`n")
+    New-Item -ItemType Directory -Path (Join-Path $dirLectura "data\asientos.txt") -Force | Out-Null
+
+    $inputLectura = Write-Input $dirLectura "input.txt" @("11")
+    $outLectura = Invoke-App $dirLectura $inputLectura
+    Assert-Contains $outLectura "Error leyendo" "fallo de lectura reportado"
+    Assert-Contains $outLectura "No se guardaron cambios" "guardado bloqueado por fallo de lectura"
+    if (-not (Test-Path (Join-Path $dirLectura "data\asientos.txt") -PathType Container)) {
+        throw "FALLO: el archivo con fallo de lectura fue reemplazado"
+    }
+    Write-Host "OK: asientos.txt intacto tras fallo de lectura"
 
     Write-Host ""
     Write-Host "TODAS LAS PRUEBAS PASARON."
