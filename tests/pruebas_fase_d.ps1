@@ -43,7 +43,7 @@ function New-TestDir {
     New-Item -ItemType Directory -Path (Join-Path $dir "data") -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $dir "backup") -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $dir "bin") -Force | Out-Null
-    Copy-Item (Join-Path $temp "bin\Contabilidad.class") (Join-Path $dir "bin\Contabilidad.class") -Force
+    Copy-Item (Join-Path $temp "bin\*.class") (Join-Path $dir "bin\") -Force
     return $dir
 }
 
@@ -72,9 +72,9 @@ try {
     New-Item -ItemType Directory -Path (Join-Path $temp "bin") -Force | Out-Null
 
     Write-Host "Compilando..."
-    & javac -d (Join-Path $temp "bin") (Join-Path $root "src\Contabilidad.java")
+    & javac -d (Join-Path $temp "bin") (Get-ChildItem (Join-Path $root "src\*.java")).FullName
     if ($LASTEXITCODE -ne 0) {
-        throw "No se pudo compilar src\Contabilidad.java"
+        throw "No se pudo compilar src\*.java"
     }
     Write-Host "OK: compilacion"
 

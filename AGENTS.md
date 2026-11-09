@@ -13,20 +13,28 @@ archivos de texto plano (`cuentas.txt`, `asientos.txt`, `periodo.txt`,
 ```
 proyecto contabilidad/
 ├── src/
-│   └── Contabilidad.java    # Aplicacion principal (menu interactivo)
+│   ├── Contabilidad.java    # main, menus, opcion 12 y salida
+│   ├── Estado.java          # listas paralelas, rango y tolerancias
+│   ├── Consola.java         # Scanner, menus y lecturas validadas
+│   ├── Fechas.java          # fechas y ordenamiento
+│   ├── Formato.java         # montos, texto y etiquetas
+│   ├── Persistencia.java    # archivos, bloqueos, carga/guardado y respaldos
+│   ├── Cuentas.java         # catalogo, tipos, creacion y busqueda de cuentas
+│   ├── Asientos.java        # registro, saldos, movimientos y busquedas
+│   └── Reportes.java        # balanza, diario, mayor, cuentas T y balances
 ├── data/
 │   ├── cuentas.txt          # Catalogo de cuentas con saldos
 │   ├── asientos.txt         # Asientos contables registrados
-│   ├── periodo.txt          # Periodo activo: inicio|fin
+│   ├── periodo.txt          # Archivo heredado, ya no lo usa el programa
 │   └── balance.txt          # Ultimo balance generado
 ├── bin/
-│   └── Contabilidad.class   # Archivo compilado
+│   └── *.class              # Clases compiladas de los nueve modulos
 └── AGENTS.md                # Este archivo
 ```
 
-> Desde el Cambio 33 se permiten archivos `.java` adicionales como modulos
-> `static` de organizacion. La separacion efectiva se definira en la fase de
-> modularizacion; por ahora todo el codigo sigue en `src/Contabilidad.java`.
+> Desde el Cambio 34 la separacion en modulos es efectiva. Los nueve archivos
+> son modulos `static` de organizacion; el dominio sigue representado por las
+> listas paralelas de `Estado` y no se instancian clases del proyecto.
 
 ## Reglas de codigo
 
@@ -916,6 +924,64 @@ listas paralelas ni introducir POO de dominio.
 - La separacion fisica en modulos se hara en una fase posterior; este cambio
   solo deja las reglas y el arreglo de 1.4.
 
+### Cambio 34: Separacion fisica en nueve modulos `static`
+
+**Razon:** `src/Contabilidad.java` concentraba toda la aplicacion en un solo
+archivo de aproximadamente 1.374 lineas. Se pidio separarlo en nueve modulos de
+organizacion sin cambiar el comportamiento, los mensajes, las 12 opciones ni el
+formato de `data/`, manteniendo el modelo de listas paralelas y sin introducir
+objetos de dominio.
+
+**Impacto:**
+- `src/Contabilidad.java`: quedo con 120 lineas. Conserva `main`, los menus
+  principales y de administracion, la opcion 12 (rango de reportes), la
+  configuracion del rango y `salir()`. Las llamadas a los demas modulos se
+  califican con `Modulo.metodo()`.
+- `src/Estado.java`: centraliza las listas paralelas de cuentas, asientos y
+  partidas, las tolerancias contables y el rango de reportes
+  (`rangoDesde`, `rangoHasta`, `vistaInicio()`, `vistaFin()` y
+  `descripcionRango()`).
+- `src/Consola.java`: centraliza el `Scanner`, la bandera `entradaCerrada`, los
+  menus, las lecturas validadas (`leerString`, `leerInt`, `leerDouble`,
+  `leerFecha`, `leerFechaRango`, `leerTextoPersistible`, `leerTextoOpcional`,
+  `confirmar`, `leerEntrada`), `linea()` y `parsearMontoSimple()`.
+- `src/Fechas.java`: concentra `FORMATO_FECHA`, `FECHA_MIN`, `FECHA_MAX`,
+  `fechaActual()`, `parsearFecha()`, `fechaOrdenable()` y `fechaEnRango()`.
+- `src/Formato.java`: concentra el formateo y parseo de montos, la limpieza de
+  campos, `normalizarTexto()`, `recortar()` y `etiquetaLado()`.
+- `src/Persistencia.java`: concentra las rutas `ARCHIVO_*`, las banderas
+  `bloquearGuardadoAsientos` y `bloquearGuardadoCuentas`, la carga inicial,
+  `guardarCuentas()`, `guardarAsientos()`, `guardarBalance()`, la escritura
+  atomica, los respaldos de archivos invalidos y el respaldo manual.
+- `src/Cuentas.java`: concentra el catalogo estandar de 75 cuentas, los tipos,
+  la creacion, la busqueda, la validacion de codigos y la reconstruccion del
+  catalogo.
+- `src/Asientos.java`: concentra el registro de asientos, la partida doble, el
+  calculo de saldos, los movimientos por cuenta, las busquedas y las utilidades
+  `cuadra()`, `tipoDeudor()`, `esCuentaContraria()`, `efectoSaldo()` y
+  `totalLado()`.
+- `src/Reportes.java`: concentra la balanza de comprobacion, el libro diario, el
+  libro mayor, las cuentas T, el estado de resultados y el balance general,
+  incluido el indicador `saldoContrarioEnReporte`.
+- No se agrego, elimino ni renombro ningun metodo: el inventario de 100 metodos
+  es identico al de la linea base. No hay `new` de clases del proyecto,
+  herencia, polimorfismo ni interfaces; todos los metodos y campos son
+  `static`.
+- Se conservaron los mensajes de consola, las 12 opciones, la logica contable,
+  la tolerancia de 0.005, la partida doble, las validaciones y los formatos de
+  `data/`.
+- `tests/pruebas_fase_d.ps1`: compila todos los `src/*.java` y la suite completa
+  pasa despues de cada etapa de la separacion.
+- `README.md`: se agrego la estructura de los nueve modulos y se actualizo la
+  nota de compilacion.
+- `AGENTS.md`: se actualizo la estructura, el comando de compilacion y esta
+  entrada del historial.
+- Los archivos de `data/` no se modificaron: los hashes SHA-256 son identicos a
+  la linea base.
+- La rama de trabajo fue `refactor/modularizacion-9`, con el tag
+  `pre-modularizacion` como punto de recuperacion; al final se integro en
+  `main`.
+
 ## Regla de comunicacion
 
 Siempre incluir un resumen de los cambios realizados y la razon de cada uno.
@@ -925,15 +991,15 @@ el cambio. Usar un formato claro y conciso con viñetas o secciones.
 ## Compilacion y ejecucion
 
 ```powershell
-# Compilar (estado actual, un solo archivo)
-javac -d bin src/Contabilidad.java
-
-# Compilar todos los modulos cuando existan archivos adicionales
+# Compilar todos los modulos
 javac -d bin (Get-ChildItem src\*.java).FullName
 
 # Ejecutar
 java -cp bin Contabilidad
 ```
+
+Si se elimina o renombra un modulo, conviene borrar los `.class` de `bin/`
+antes de recompilar para no dejar clases de versiones anteriores.
 
 ## Notas para el desarrollador
 

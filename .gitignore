@@ -6,6 +6,6 @@
 !README.md
 !AGENTS.md
 !src/
-!src/Contabilidad.java
+!src/*.java
 !tests/
 !tests/pruebas_fase_d.ps1
