@@ -3,10 +3,10 @@
 ## Descripcion general
 
 Sistema de contabilidad en Java con interfaz de consola para registro de asientos
-contables bajo el metodo de partida doble, con control de periodos, cierre del
-resultado y reportes por periodo o historicos. Los datos se persisten en
-archivos de texto plano (`cuentas.txt`, `asientos.txt`, `periodo.txt`,
-`balance.txt`) utilizando las librerias nativas de Java (`java.io` / `java.nio`).
+contables bajo el metodo de partida doble, con reportes historicos o filtrados
+por un rango de fechas. Los datos se persisten en archivos de texto plano
+(`cuentas.txt`, `asientos.txt`, `balance.txt`) utilizando las librerias nativas
+de Java (`java.io` / `java.nio`).
 
 ## Estructura del proyecto
 
@@ -87,8 +87,7 @@ proyecto contabilidad/
 - Verificar que la cuenta exista antes de registrar un asiento
 - Verificar que el tipo de partida sea "Debito" o "Credito"
 - Verificar que debitos sean iguales a creditos (partida doble)
-- Verificar que la fecha del asiento este dentro del periodo activo
-- Impedir el registro de asientos en un periodo que ya tiene cierre
+- Verificar que la fecha del asiento sea una fecha real en formato `dd/MM/yyyy`
 - Tolerancia de 0.005 para comparaciones de montos
 
 ## Reglas contables
@@ -119,22 +118,8 @@ proyecto contabilidad/
 
 - Utilidad bruta = Ingresos - Costos
 - Utilidad neta = Utilidad bruta - Gastos
-- Los asientos de cierre no se cuentan en el estado de resultados para no
-  duplicar el resultado.
-
-### Cierre de periodo
-
-- El cierre toma los saldos acumulados de Ingreso, Costo y Gasto hasta la fecha
-  de fin del periodo.
-- Deja esas cuentas en cero y traslada el resultado a
-  `3200 Resultados de ejercicios anteriores`.
-- Si hay utilidad, acredita `3200`; si hay perdida, la debita.
-- El asiento de cierre se guarda con fecha igual al fin del periodo y con la
-  marca `|CIERRE`.
-- Un periodo esta cerrado si contiene al menos un asiento de cierre.
-- Despues de cerrar, el periodo avanza automaticamente: ano completo al ano
-  siguiente, mes completo al mes siguiente y rango personalizado a otro de igual
-  cantidad de dias.
+- Los asientos de cierre legacy (`|CIERRE`) no se cuentan en el estado de
+  resultados para no duplicar el resultado.
 
 ## Catalogo de cuentas (75 cuentas)
 
@@ -1004,12 +989,12 @@ antes de recompilar para no dejar clases de versiones anteriores.
 ## Notas para el desarrollador
 
 1. Si se agrega un nuevo tipo de cuenta, actualizar:
-   - El arreglo `TIPOS_CUENTA` y la lista `TIPOS` que se deriva de el (fuente
+   - El arreglo `TIPOS_CUENTA` y la lista `TIPOS` en `Cuentas.java` (fuente
      unica para `tipoValido()`, `pedirTipoCuenta()` y `sugerirCodigoCuenta()`)
-   - La logica de `efectoSaldo()` para definir el efecto del debito/credito
-   - La logica de `recalcularSaldos()`
-   - La logica de balance y estado de resultados
-   - La logica de cierre de periodo (`ladoCierre()` y `cerrarPeriodo()`)
+   - La logica de `efectoSaldo()` en `Asientos.java` para definir el efecto del
+     debito/credito
+   - La logica de `recalcularSaldos()` y `tipoDeudor()` en `Asientos.java`
+   - La logica de balance y estado de resultados en `Reportes.java`
 
 2. Las listas paralelas deben mantenerse sincronizadas: el indice `i` representa
    la misma cuenta o asiento en todas las listas. No desincronizar sus tamaños.
@@ -1036,22 +1021,22 @@ antes de recompilar para no dejar clases de versiones anteriores.
    `recalculo_`, `reinicio_`) ni se podan carpetas de `backup/`.
 
 8. El respaldo manual se crea con la opcion 10 en
-   `backup/manual_YYYYMMDD_HHmmss_SSS/` y copia los archivos de `data/` que
-   existan, incluido `periodo.txt`. La opcion no tiene submenu ni pide
-   confirmacion adicional.
+   `backup/manual_YYYYMMDD_HHmmss_SSS/` y copia `cuentas.txt`, `asientos.txt` y
+   `balance.txt` si existen. La opcion no tiene submenu ni pide confirmacion
+   adicional.
 
 9. No hay restauracion integrada. Para recuperar un respaldo, cierre el
-   programa y copie manualmente `cuentas.txt`, `asientos.txt`, `balance.txt` y
-   `periodo.txt` desde la carpeta del respaldo hacia `data/`. Si el respaldo no
-   tiene `periodo.txt`, el programa creara uno predeterminado al iniciar.
+   programa y copie manualmente `cuentas.txt`, `asientos.txt` y `balance.txt`
+   desde la carpeta del respaldo hacia `data/`.
 
-10. Los reportes usan la vista activa: periodo actual por defecto o historico
-    completo. La vista se cambia en la opcion 12.4. El registro de asientos
-    siempre usa el periodo configurado, aunque la vista este en historico. La
-    busqueda de asientos (9.2) solo permite fecha exacta o texto en la
-    descripcion y no modifica saldos ni archivos. Tampoco existe deteccion de
-    cambios externos: si se editan los archivos con el programa abierto, el
-    proximo guardado sobrescribe esas ediciones.
+10. Los reportes usan el rango configurado en la opcion 12; si no hay rango
+    configurado, usan el historico completo. La balanza y el balance general
+    acumulan hasta la fecha final; el libro diario, el libro mayor, las cuentas
+    T, el estado de resultados y el catalogo usan el rango. La busqueda de
+    asientos (9.2) solo permite fecha exacta o texto en la descripcion y no
+    modifica saldos ni archivos. Tampoco existe deteccion de cambios externos:
+    si se editan los archivos con el programa abierto, el proximo guardado
+    sobrescribe esas ediciones.
 
 11. Para ejecutar las pruebas de regresion:
     `powershell -ExecutionPolicy Bypass -File tests/pruebas_fase_d.ps1`.
@@ -1064,13 +1049,12 @@ antes de recompilar para no dejar clases de versiones anteriores.
     corregir el archivo. El libro diario y los reportes deben seguir usando los
     saldos calculados desde las partidas, no desde `asientoTotales`.
 
-13. El periodo activo vive en `data/periodo.txt` (`inicio|fin`). Un periodo esta
-    cerrado si contiene un asiento con tipo `CIERRE`; no se guarda una bandera
-    aparte. Los asientos de cierre usan cinco campos en `asientos.txt`; los
-    normales siguen usando cuatro. El cierre toma saldos acumulados hasta el fin
-    del periodo y traslada el resultado a `3200`. Despues de cerrar se avanza el
-    periodo automaticamente. No se deben borrar ni editar a mano los asientos de
-    cierre sin recalcular los saldos.
+13. El rango de reportes de la opcion 12 vive solo en memoria (`Estado.rangoDesde`
+    y `Estado.rangoHasta`). No se guarda en `data/` y se pierde al salir. Un
+    rango vacio significa historico completo. Los asientos de cierre legacy usan
+    cinco campos en `asientos.txt`; los normales siguen usando cuatro. No se
+    deben borrar ni editar a mano los asientos de cierre sin recalcular los
+    saldos.
 
 14. Si `cuentas.txt` queda vacio o sin lineas validas, el programa arranca con
     `bloquearGuardadoCuentas = true`: en ese estado `data/asientos.txt` no debe
@@ -1089,8 +1073,8 @@ antes de recompilar para no dejar clases de versiones anteriores.
     `leerFecha()` devuelve `null`. Ningun metodo debe llamar `equals`, `split` o
     `contains` sobre esos retornos sin verificarlos.
 
-16. Las clases adicionales son solo modulos de organizacion con metodos
-    `static`. No representan cuentas, asientos ni partidas y no se instancian.
-    La modularizacion fisica se definira en una fase posterior; hasta entonces,
-    todo el codigo sigue en `src/Contabilidad.java`.
+16. Los nueve archivos de `src/` son modulos de organizacion con metodos y
+    campos `static`. No representan cuentas, asientos ni partidas y no se
+    instancian. La separacion fisica se completo en el Cambio 34; cualquier
+    archivo nuevo debe compilarse junto con los demas.
 
