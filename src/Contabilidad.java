@@ -303,12 +303,18 @@ public class Contabilidad {
         bloquearGuardadoCuentas = false;
         cuentaCodigos.clear(); cuentaNombres.clear(); cuentaTipos.clear(); cuentaSaldos.clear();
         inicializarCuentas();
+        bloquearGuardadoAsientos = false;
         if (!cargarAsientosTexto(ARCHIVO_ASIENTOS)) {
-            System.out.println("No se pudieron recargar los asientos. Corrija " + ARCHIVO_ASIENTOS + " y reinicie el programa.");
+            bloquearGuardadoAsientos = true;
+            bloquearGuardadoCuentas = true;
+            linea("No se pudieron recargar los asientos.",
+                    "No se guardara " + ARCHIVO_ASIENTOS + " ni se haran otros cambios hasta reiniciar.",
+                    "Los reportes pueden estar incompletos. Corrija el archivo y reinicie.");
             return;
         }
         recalcularSaldos();
-        bloquearGuardadoAsientos = false;
+        if (bloquearGuardadoAsientos)
+            System.out.println("ADVERTENCIA: no se pudo respaldar " + ARCHIVO_ASIENTOS + "; no se guardara hasta corregir la carpeta backup/.");
         if (estabaBloqueado) System.out.println("El bloqueo de guardado del catalogo fue levantado.");
         System.out.println("Catalogo reconstruido con " + cuentaCodigos.size() + " cuentas estandar.");
         System.out.println("Asientos recargados: " + asientoFechas.size() + ".");
@@ -476,7 +482,9 @@ public class Contabilidad {
             System.out.println("Se cargaron solo los asientos validos.");
             if (!respaldarArchivoInvalido(archivo, "asientos_invalidos")) {
                 bloquearGuardadoAsientos = true;
-                System.out.println("ADVERTENCIA: no se sobrescribira " + archivo + " hasta reconstruir el catalogo de cuentas (opcion 1.4), para no perder los asientos originales.");
+                linea("ADVERTENCIA: no se pudo guardar la copia de seguridad de " + archivo + " en backup/.",
+                        "No se sobrescribira ese archivo para no perder los asientos originales.",
+                        "Corrija la carpeta backup/ y reinicie el programa.");
             }
         }
         return true;
@@ -535,7 +543,8 @@ public class Contabilidad {
     static void registrarAsiento() {
         if (bloquearGuardadoAsientos || bloquearGuardadoCuentas) {
             if (bloquearGuardadoCuentas)
-                System.out.println("No se pueden registrar asientos: catalogo vacio. Restaure cuentas.txt y reinicie.");
+                linea("No se pueden registrar asientos: el catalogo o el guardado estan bloqueados.",
+                        "Corrija los archivos de datos y reinicie el programa.");
             else
                 System.out.println("No se pueden registrar asientos: corrija " + ARCHIVO_ASIENTOS + " y reinicie.");
             return;
@@ -1072,7 +1081,11 @@ public class Contabilidad {
     static boolean tipoValido(String tipo) { return TIPOS.contains(tipo); }
 
     static void crearCuenta() {
-        if (bloquearGuardadoCuentas) { System.out.println("No se pueden crear cuentas: catalogo vacio. Restaure cuentas.txt y reinicie."); return; }
+        if (bloquearGuardadoCuentas) {
+            linea("No se pueden crear cuentas: el catalogo o el guardado estan bloqueados.",
+                    "Corrija los archivos de datos y reinicie el programa.");
+            return;
+        }
         linea("\n--- NUEVA CUENTA ---",
                 "Una cuenta es el nombre con el que se registra un movimiento.",
                 "Se pediran: nombre, tipo y codigo.");

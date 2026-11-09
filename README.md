@@ -100,6 +100,9 @@ La opcion **1.4 Reconstruir catalogo estandar** recupera la situacion:
   `backup/cuentas_antes_reconstruir_YYYYMMDD_HHmmss_SSS.txt`.
 - Vuelve a cargar las 75 cuentas estandar, guarda `cuentas.txt` y recarga
   `asientos.txt` para que los saldos queden correctos.
+- Si la recarga de `asientos.txt` falla o no se puede guardar el respaldo, el
+  programa bloquea el guardado de asientos y pide reiniciar; no sobrescribe
+  `asientos.txt`.
 
 Mientras el catalogo este vacio, el programa **no sobrescribe
 `data/asientos.txt`**, aunque los asientos no se puedan cargar (porque sus

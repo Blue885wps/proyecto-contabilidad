@@ -496,6 +496,34 @@ try {
     Write-Host "OK: asientos.txt intacto tras fallo de lectura"
 
     # ------------------------------------------------------------------
+    # Fallo de respaldo de asientos invalidos: no se sobrescribe el archivo
+    # ------------------------------------------------------------------
+    $dirRespaldoFallo = New-TestDir "respaldo_fallo"
+    $cuentasRespaldoFallo = @(
+        "1000|Caja|Activo|0.0",
+        "4010|Ventas|Ingreso|0.0"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $dirRespaldoFallo "data\cuentas.txt") ($cuentasRespaldoFallo + "`r`n")
+    $asientosRespaldoFallo = @(
+        "ASIENTO|01/03/2026|Asiento invalido|100.00",
+        "PARTIDA|1000|Debito|100.00",
+        "PARTIDA|9999|Credito|100.00"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $dirRespaldoFallo "data\asientos.txt") $asientosRespaldoFallo
+    Remove-Item (Join-Path $dirRespaldoFallo "backup") -Recurse -Force
+    New-Item -ItemType File -Path (Join-Path $dirRespaldoFallo "backup") -Force | Out-Null
+
+    $inputRespaldoFallo = Write-Input $dirRespaldoFallo "input.txt" @("11")
+    $outRespaldoFallo = Invoke-App $dirRespaldoFallo $inputRespaldoFallo
+    Assert-Contains $outRespaldoFallo "no se pudo guardar la copia de seguridad" "fallo de respaldo reportado"
+    Assert-Contains $outRespaldoFallo "No se guardaron cambios" "guardado bloqueado por fallo de respaldo"
+    $contenidoRespaldoFallo = Get-Content (Join-Path $dirRespaldoFallo "data\asientos.txt") -Raw
+    if (-not $contenidoRespaldoFallo.Contains("9999")) {
+        throw "FALLO: el archivo de asientos se sobrescribio tras fallar el respaldo"
+    }
+    Write-Host "OK: asientos.txt intacto tras fallo de respaldo"
+
+    # ------------------------------------------------------------------
     # Fin de entrada: el programa cierra limpio, sin excepciones
     # ------------------------------------------------------------------
     $dirEof = New-TestDir "eof"
