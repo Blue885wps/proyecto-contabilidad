@@ -1,11 +1,3 @@
-import java.io.*;
-import java.nio.file.*;
-import java.text.Normalizer;
-import java.time.*;
-import java.time.format.*;
-import java.util.*;
-import java.util.Locale;
-
 public class Contabilidad {
     // ============================================================
     // MAIN Y MENUS
