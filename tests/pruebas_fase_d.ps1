@@ -520,6 +520,29 @@ try {
     Write-Host "OK: fin de entrada cierra el programa sin excepciones"
 
     # ------------------------------------------------------------------
+    # Enter en la fecha: usa la fecha de hoy y avanza a la descripcion
+    # ------------------------------------------------------------------
+    $dirEnter = New-TestDir "enter_fecha"
+    Write-Utf8 (Join-Path $dirEnter "data\cuentas.txt") (("1000|Caja|Activo|0.0", "4010|Ventas|Ingreso|0.0") -join "`r`n")
+    Write-Utf8 (Join-Path $dirEnter "data\asientos.txt") ""
+    $outEnter = Invoke-App $dirEnter (Write-Input $dirEnter "input_eof.txt" @("2", ""))
+    Assert-Contains $outEnter "Enter = hoy " "el prompt de fecha muestra el dia de hoy"
+    Assert-Contains $outEnter "Descripcion (ej:" "Enter en la fecha avanza a la descripcion"
+    Assert-Contains $outEnter "No hay mas entrada." "fin de entrada controlado tras la fecha"
+
+    $inputHoy = Write-Input $dirEnter "input_hoy.txt" @(
+        "2", "", "Venta de hoy", "1000", "1", "100", "4010", "2", "100", "N", "S", "11"
+    )
+    $outHoy = Invoke-App $dirEnter $inputHoy
+    Assert-Contains $outHoy "Asiento registrado exitosamente." "asiento con fecha vacia registrado"
+    $hoy = (Get-Date).ToString("dd/MM/yyyy")
+    $contenidoHoy = Get-Content (Join-Path $dirEnter "data\asientos.txt") -Raw
+    if (-not $contenidoHoy.Contains("ASIENTO|$hoy|Venta de hoy")) {
+        throw "FALLO: la fecha vacia no se guardo como la fecha de hoy ($hoy)"
+    }
+    Write-Host "OK: Enter en la fecha guarda el dia de hoy"
+
+    # ------------------------------------------------------------------
     # Catalogo vacio: se puede reconstruir y seguir operando
     # ------------------------------------------------------------------
     $dirCatalogo = New-TestDir "catalogo_vacio"
