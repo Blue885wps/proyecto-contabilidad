@@ -18,7 +18,7 @@ entrega. Conservar esa autorizacion para la defensa.
 Desde la carpeta del proyecto:
 
 ```powershell
-javac -d bin src/Contabilidad.java
+javac -d bin (Get-ChildItem src\*.java).FullName
 java -cp bin Contabilidad
 ```
 

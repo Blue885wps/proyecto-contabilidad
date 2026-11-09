@@ -13,19 +13,10 @@ public class Contabilidad {
     static final String ARCHIVO_CUENTAS = "data/cuentas.txt";
     static final String ARCHIVO_ASIENTOS = "data/asientos.txt";
     static final String ARCHIVO_BALANCE = "data/balance.txt";
-    static final String FECHA_MIN = "01/01/1900";
-    static final String FECHA_MAX = "31/12/2100";
-    static final String CUENTA_RESULTADOS_ANTERIORES = "3200";
     static final Scanner scanner = new Scanner(System.in);
     static final String[] TIPOS_CUENTA = {"Activo", "Pasivo", "Patrimonio", "Ingreso", "Costo", "Gasto"};
     static final List<String> TIPOS = Arrays.asList(TIPOS_CUENTA);
-    static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-    static final DateTimeFormatter FORMATO_FECHA_ESTRICTA = DateTimeFormatter.ofPattern("dd/MM/uuuu")
-            .withResolverStyle(ResolverStyle.STRICT);
     static final DateTimeFormatter FORMATO_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS");
-    static final double TOLERANCIA = 0.005;
-    static final double TOLERANCIA_SALDO = 0.005;
-    static final double EPSILON = 1e-9;
 
     // Catalogo estandar de 75 cuentas: codigo|nombre|tipo, separadas por ;
     static final String[] CATALOGO_ESTANDAR = {
@@ -89,12 +80,7 @@ public class Contabilidad {
     }
 
     static void linea(String... textos) { for (String texto : textos) System.out.println(texto); }
-    static boolean cuadra(double debe, double haber) { return Math.abs(debe - haber) <= TOLERANCIA + EPSILON; }
-    static double redondearMonto(double valor) { return Math.round(valor * 100.0) / 100.0; }
-    static String formatearMonto(double valor) {
-        if (Math.abs(valor) < TOLERANCIA) valor = 0;
-        return String.format(Locale.ROOT, "%.2f", valor);
-    }
+    static boolean cuadra(double debe, double haber) { return Math.abs(debe - haber) <= Estado.TOLERANCIA + Estado.EPSILON; }
     static boolean tipoDeudor(String tipoCuenta) { return tipoCuenta.equals("Activo") || tipoCuenta.equals("Costo") || tipoCuenta.equals("Gasto"); }
     static boolean esCuentaContraria(String codigo) {
         return codigo.equals("1790") || codigo.equals("1890") || codigo.equals("3120")
@@ -188,10 +174,10 @@ public class Contabilidad {
         String desde = leerFechaRango("Fecha inicial (Enter = historico): ");
         if (desde == null) return;
         if (desde.isEmpty()) { rangoDesde = ""; rangoHasta = ""; System.out.println("Rango restablecido: historico completo."); return; }
-        String hasta = leerFechaRango("Fecha final (Enter = hoy " + fechaActual() + "): ");
+        String hasta = leerFechaRango("Fecha final (Enter = hoy " + Fechas.fechaActual() + "): ");
         if (hasta == null) return;
-        if (hasta.isEmpty()) hasta = fechaActual();
-        if (fechaOrdenable(hasta).compareTo(fechaOrdenable(desde)) < 0) {
+        if (hasta.isEmpty()) hasta = Fechas.fechaActual();
+        if (Fechas.fechaOrdenable(hasta).compareTo(Fechas.fechaOrdenable(desde)) < 0) {
             System.out.println("La fecha final no puede ser anterior a la inicial."); return;
         }
         rangoDesde = desde; rangoHasta = hasta;
@@ -204,14 +190,14 @@ public class Contabilidad {
             if (!scanner.hasNextLine()) { entradaCerrada = true; System.out.println("No hay mas entrada disponible."); return null; }
             String entrada = scanner.nextLine().trim();
             if (entrada.isEmpty()) return "";
-            LocalDate fecha = parsearFecha(entrada);
-            if (fecha != null && fecha.getYear() >= 1900 && fecha.getYear() <= 2100) return fecha.format(FORMATO_FECHA);
+            LocalDate fecha = Fechas.parsearFecha(entrada);
+            if (fecha != null && fecha.getYear() >= 1900 && fecha.getYear() <= 2100) return fecha.format(Fechas.FORMATO_FECHA);
             System.out.println("Fecha invalida. Use dd/MM/yyyy y una fecha real entre 1900 y 2100.");
         }
     }
 
-    static String vistaInicio() { return rangoDesde.isEmpty() ? FECHA_MIN : rangoDesde; }
-    static String vistaFin() { return rangoHasta.isEmpty() ? FECHA_MAX : rangoHasta; }
+    static String vistaInicio() { return rangoDesde.isEmpty() ? Fechas.FECHA_MIN : rangoDesde; }
+    static String vistaFin() { return rangoHasta.isEmpty() ? Fechas.FECHA_MAX : rangoHasta; }
     static String descripcionRango() { return rangoDesde.isEmpty() ? "Historico completo" : rangoDesde + " al " + rangoHasta; }
 
     // ============================================================
@@ -328,10 +314,10 @@ public class Contabilidad {
         if (bloquearGuardadoCuentas) { System.out.println("No se guardaron las cuentas: corrija " + ARCHIVO_CUENTAS + " y reinicie el programa."); return false; }
         StringBuilder contenido = new StringBuilder();
         for (int i = 0; i < cuentaCodigos.size(); i++) {
-            contenido.append(limpiarCampo(cuentaCodigos.get(i))).append('|')
-                    .append(limpiarCampo(cuentaNombres.get(i))).append('|')
-                    .append(limpiarCampo(cuentaTipos.get(i))).append('|')
-                    .append(formatearMonto(cuentaSaldos.get(i))).append(System.lineSeparator());
+            contenido.append(Formato.limpiarCampo(cuentaCodigos.get(i))).append('|')
+                    .append(Formato.limpiarCampo(cuentaNombres.get(i))).append('|')
+                    .append(Formato.limpiarCampo(cuentaTipos.get(i))).append('|')
+                    .append(Formato.formatearMonto(cuentaSaldos.get(i))).append(System.lineSeparator());
         }
         return escribirArchivoAtomico(ARCHIVO_CUENTAS, contenido.toString());
     }
@@ -356,7 +342,6 @@ public class Contabilidad {
         }
     }
 
-    static String limpiarCampo(String valor) { return valor == null ? "" : valor.replace("\r", " ").replace("\n", " "); }
     static void advertir(String archivo, int numeroLinea, String mensaje) {
         System.out.println("ADVERTENCIA " + archivo + " linea " + numeroLinea + ": " + mensaje);
     }
@@ -415,15 +400,15 @@ public class Contabilidad {
         if (bloquearGuardadoAsientos) { System.out.println("No se guardaron los asientos: corrija " + ARCHIVO_ASIENTOS + " y reinicie el programa."); return false; }
         StringBuilder contenido = new StringBuilder();
         for (int i = 0; i < asientoFechas.size(); i++) {
-            contenido.append("ASIENTO|").append(limpiarCampo(asientoFechas.get(i))).append('|')
-                    .append(limpiarCampo(asientoDescripciones.get(i))).append('|').append(formatearMonto(asientoTotales.get(i)));
+            contenido.append("ASIENTO|").append(Formato.limpiarCampo(asientoFechas.get(i))).append('|')
+                    .append(Formato.limpiarCampo(asientoDescripciones.get(i))).append('|').append(Formato.formatearMonto(asientoTotales.get(i)));
             if (esCierre(i)) contenido.append("|CIERRE");
             contenido.append(System.lineSeparator());
             List<String> cods = partidaCodigos.get(i), tips = partidaTipos.get(i);
             List<Double> mons = partidaMontos.get(i);
             for (int j = 0; j < cods.size(); j++)
-                contenido.append("PARTIDA|").append(limpiarCampo(cods.get(j))).append('|')
-                        .append(limpiarCampo(tips.get(j))).append('|').append(formatearMonto(mons.get(j))).append(System.lineSeparator());
+                contenido.append("PARTIDA|").append(Formato.limpiarCampo(cods.get(j))).append('|')
+                        .append(Formato.limpiarCampo(tips.get(j))).append('|').append(Formato.formatearMonto(mons.get(j))).append(System.lineSeparator());
         }
         return escribirArchivoAtomico(ARCHIVO_ASIENTOS, contenido.toString());
     }
@@ -497,10 +482,10 @@ public class Contabilidad {
         String fechaNormalizada = null;
         if (fecha == null || fecha.isEmpty()) errores.add("fecha vacia");
         else {
-            LocalDate f = parsearFecha(fecha);
+            LocalDate f = Fechas.parsearFecha(fecha);
             if (f == null) errores.add("fecha invalida");
             else if (f.getYear() < 1900 || f.getYear() > 2100) errores.add("ano fuera de rango");
-            else fechaNormalizada = f.format(FORMATO_FECHA);
+            else fechaNormalizada = f.format(Fechas.FORMATO_FECHA);
         }
         if (descripcion == null || descripcion.isEmpty()) errores.add("descripcion vacia");
         int cantidad = cods == null ? 0 : cods.size();
@@ -524,7 +509,7 @@ public class Contabilidad {
     static String agregarPartidaCargada(String[] partes, int numeroLinea, List<String> cods,
             List<String> tips, List<Double> mons) {
         if (partes.length != 4) return "PARTIDA con " + partes.length + " campos";
-        String codigo = partes[1].trim(), tipoTexto = normalizarTexto(partes[2]);
+        String codigo = partes[1].trim(), tipoTexto = Formato.normalizarTexto(partes[2]);
         String tipo = tipoTexto.equals("debito") ? "Debito" : tipoTexto.equals("credito") ? "Credito" : null;
         if (tipo == null) return "tipo de partida invalido";
         if (codigo.isEmpty()) return "codigo vacio";
@@ -608,10 +593,10 @@ public class Contabilidad {
             double monto = leerDouble("  Monto (ej: 1500,00). Use coma o punto decimal: ");
             if (entradaCerrada) return false;
             double saldoAct = saldosSimulados.get(idx), nuevoSaldo = saldoAct + efectoSaldo(tipoCta, tipo, monto);
-            if (!esCuentaContraria(codigo) && nuevoSaldo < -TOLERANCIA_SALDO) {
+            if (!esCuentaContraria(codigo) && nuevoSaldo < -Estado.TOLERANCIA_SALDO) {
                 System.out.println("\nAVISO: la cuenta quedaria con saldo en el lado contrario al normal.");
                 System.out.printf("  %s - %s (%s) | Actual en el rango: %.2f | %s %.2f | Resultante: %.2f%n",
-                        codigo, cuentaNombres.get(idx), tipoCta, saldoAct, etiquetaLado(tipo), monto, nuevoSaldo);
+                        codigo, cuentaNombres.get(idx), tipoCta, saldoAct, Formato.etiquetaLado(tipo), monto, nuevoSaldo);
                 if (!confirmar("Desea continuar? (S/N): ")) { System.out.println("Partida descartada."); continue; }
             }
             saldosSimulados.set(idx, nuevoSaldo);
@@ -660,7 +645,7 @@ public class Contabilidad {
     static double[][] movimientosRango(String desde, String hasta) {
         double[] debitos = new double[cuentaCodigos.size()], creditos = new double[cuentaCodigos.size()];
         for (int a = 0; a < asientoFechas.size(); a++) {
-            if (!fechaEnRango(asientoFechas.get(a), desde, hasta)) continue;
+            if (!Fechas.fechaEnRango(asientoFechas.get(a), desde, hasta)) continue;
             if (esCierre(a)) continue; // excluir cierres legacy
             List<String> cods = partidaCodigos.get(a), tips = partidaTipos.get(a);
             List<Double> mons = partidaMontos.get(a);
@@ -696,7 +681,7 @@ public class Contabilidad {
     static double saldoDebitoAntes(String codigo, String fecha) {
         double saldo = 0;
         for (int a = 0; a < asientoFechas.size(); a++) {
-            if (fechaOrdenable(asientoFechas.get(a)).compareTo(fechaOrdenable(fecha)) >= 0) continue;
+            if (Fechas.fechaOrdenable(asientoFechas.get(a)).compareTo(Fechas.fechaOrdenable(fecha)) >= 0) continue;
             List<String> cods = partidaCodigos.get(a);
             for (int p = 0; p < cods.size(); p++)
                 if (cods.get(p).equals(codigo))
@@ -706,7 +691,7 @@ public class Contabilidad {
     }
 
     static void recalcularSaldos() {
-        List<Double> saldos = saldosRango(FECHA_MIN, FECHA_MAX);
+        List<Double> saldos = saldosRango(Fechas.FECHA_MIN, Fechas.FECHA_MAX);
         for (int i = 0; i < cuentaSaldos.size(); i++) cuentaSaldos.set(i, saldos.get(i));
     }
 
@@ -714,7 +699,7 @@ public class Contabilidad {
         List<Double> saldos = saldosVista(); boolean hay = false;
         for (int i = 0; i < cuentaCodigos.size(); i++) {
             double s = saldos.get(i);
-            if (!esCuentaContraria(cuentaCodigos.get(i)) && s < -TOLERANCIA_SALDO) {
+            if (!esCuentaContraria(cuentaCodigos.get(i)) && s < -Estado.TOLERANCIA_SALDO) {
                 if (!hay) { System.out.println("\nAVISO: cuentas con saldo en el lado contrario a su tipo:"); hay = true; }
                 System.out.printf("  %s - %s (%s): %.2f%n", cuentaCodigos.get(i), cuentaNombres.get(i), cuentaTipos.get(i), s);
             }
@@ -725,38 +710,24 @@ public class Contabilidad {
     // ============================================================
     // UTILIDADES DE FECHA Y ORDENAMIENTO
     // ============================================================
-    static String fechaActual() { return LocalDate.now().format(FORMATO_FECHA); }
-
     static String leerFecha(String mensaje) {
-        String hoy = fechaActual();
+        String hoy = Fechas.fechaActual();
         while (true) {
             System.out.print(mensaje + " (dd/MM/yyyy, Enter = hoy " + hoy + "): ");
             if (!scanner.hasNextLine()) { entradaCerrada = true; System.out.println("No hay mas entrada."); return null; }
             String e = scanner.nextLine().trim();
             if (e.isEmpty()) return hoy;
-            LocalDate f = parsearFecha(e);
-            if (f != null && f.getYear() >= 1900 && f.getYear() <= 2100) return f.format(FORMATO_FECHA);
+            LocalDate f = Fechas.parsearFecha(e);
+            if (f != null && f.getYear() >= 1900 && f.getYear() <= 2100) return f.format(Fechas.FORMATO_FECHA);
             System.out.println("Fecha invalida. dd/MM/yyyy, 1900-2100.");
         }
-    }
-
-    static LocalDate parsearFecha(String s) {
-        if (s == null) return null;
-        try { return LocalDate.parse(s.trim(), FORMATO_FECHA_ESTRICTA); } catch (DateTimeParseException e) { return null; }
-    }
-
-    static String fechaOrdenable(String f) { String[] p = f.split("/"); return p.length == 3 ? p[2] + p[1] + p[0] : "99999999"; }
-
-    static boolean fechaEnRango(String f, String d, String h) {
-        String fo = fechaOrdenable(f);
-        return fo.compareTo(fechaOrdenable(d)) >= 0 && fo.compareTo(fechaOrdenable(h)) <= 0;
     }
 
     static void ordenarMovimientos(List<Integer> asientos, List<Integer> partidas) {
         for (int i = 0; i < asientos.size() - 1; i++)
             for (int j = 0; j < asientos.size() - 1 - i; j++) {
-                String fa = fechaOrdenable(asientoFechas.get(asientos.get(j)));
-                String fb = fechaOrdenable(asientoFechas.get(asientos.get(j + 1)));
+                String fa = Fechas.fechaOrdenable(asientoFechas.get(asientos.get(j)));
+                String fb = Fechas.fechaOrdenable(asientoFechas.get(asientos.get(j + 1)));
                 if (fb.compareTo(fa) < 0) {
                     int ta = asientos.get(j); asientos.set(j, asientos.get(j + 1)); asientos.set(j + 1, ta);
                     if (partidas != null) {
@@ -769,7 +740,7 @@ public class Contabilidad {
     static void cargarMovimientosCuenta(String codigo, List<Integer> asientos, List<Integer> partidas) {
         asientos.clear(); partidas.clear();
         for (int i = 0; i < asientoFechas.size(); i++) {
-            if (!fechaEnRango(asientoFechas.get(i), vistaInicio(), vistaFin())) continue;
+            if (!Fechas.fechaEnRango(asientoFechas.get(i), vistaInicio(), vistaFin())) continue;
             List<String> cods = partidaCodigos.get(i);
             for (int j = 0; j < cods.size(); j++)
                 if (cods.get(j).equals(codigo)) { asientos.add(i); partidas.add(j); }
@@ -786,7 +757,7 @@ public class Contabilidad {
         System.out.println("Cada asiento muestra sus partidas al Debe y al Haber.");
         boolean hay = false;
         for (int i = 0; i < asientoFechas.size(); i++) {
-            if (!fechaEnRango(asientoFechas.get(i), vistaInicio(), vistaFin())) continue;
+            if (!Fechas.fechaEnRango(asientoFechas.get(i), vistaInicio(), vistaFin())) continue;
             System.out.println("\nAsiento #" + (i + 1) + (esCierre(i) ? " (cierre)" : ""));
             mostrarAsiento(i); hay = true;
         }
@@ -804,7 +775,7 @@ public class Contabilidad {
     static void mostrarPartidas(List<String> cods, List<String> tips, List<Double> mons) {
         System.out.printf("  %-6s %-30s %-9s %12s%n", "Codigo", "Nombre", "Lado", "Monto");
         for (int j = 0; j < cods.size(); j++)
-            System.out.printf("  %-6s %-30s %-9s %12.2f%n", cods.get(j), nombreCuenta(cods.get(j)), etiquetaLado(tips.get(j)), mons.get(j));
+            System.out.printf("  %-6s %-30s %-9s %12.2f%n", cods.get(j), nombreCuenta(cods.get(j)), Formato.etiquetaLado(tips.get(j)), mons.get(j));
     }
 
     static void verBalanceComprobacion() {
@@ -815,13 +786,13 @@ public class Contabilidad {
                 "Los totales de Debitos y Creditos deben ser iguales.", "");
         System.out.printf("%-8s %-35s %12s %12s %12s %12s%n", "Codigo", "Nombre", "Debitos", "Creditos", "Deudor", "Acreedor");
         System.out.println("-".repeat(96));
-        double[][] mov = movimientosRango(FECHA_MIN, vistaFin());
+        double[][] mov = movimientosRango(Fechas.FECHA_MIN, vistaFin());
         double[] deb = mov[0], cre = mov[1];
         double tDeb = 0, tCre = 0, tDeu = 0, tAcr = 0;
         for (int i = 0; i < cuentaCodigos.size(); i++) {
             if (deb[i] <= 0 && cre[i] <= 0) continue;
             double sal = deb[i] - cre[i];
-            double deu = sal > TOLERANCIA_SALDO ? sal : 0, acr = sal < -TOLERANCIA_SALDO ? -sal : 0;
+            double deu = sal > Estado.TOLERANCIA_SALDO ? sal : 0, acr = sal < -Estado.TOLERANCIA_SALDO ? -sal : 0;
             System.out.printf("%-8s %-35s %12.2f %12.2f %12.2f %12.2f%n",
                     cuentaCodigos.get(i), cuentaNombres.get(i), deb[i], cre[i], deu, acr);
             tDeb += deb[i]; tCre += cre[i]; tDeu += deu; tAcr += acr;
@@ -841,7 +812,7 @@ public class Contabilidad {
                 "Formato: Cta | Detalle | Parcial | Debe | Haber");
         List<Integer> idx = new ArrayList<>();
         for (int i = 0; i < asientoFechas.size(); i++)
-            if (fechaEnRango(asientoFechas.get(i), vistaInicio(), vistaFin())) idx.add(i);
+            if (Fechas.fechaEnRango(asientoFechas.get(i), vistaInicio(), vistaFin())) idx.add(i);
         if (idx.isEmpty()) { System.out.println("Sin asientos."); return; }
         ordenarMovimientos(idx, null);
         System.out.println();
@@ -865,7 +836,7 @@ public class Contabilidad {
     }
 
     static void mostrarLineaDiario(String cod, double monto, boolean credito) {
-        String det = recortar((credito ? "A " : "") + nombreCuenta(cod), 42);
+        String det = Formato.recortar((credito ? "A " : "") + nombreCuenta(cod), 42);
         String d = credito ? "" : String.format("%12.2f", monto), h = credito ? String.format("%12.2f", monto) : "";
         System.out.printf("%-10s %-42s %12s %12s %12s%n", cod, det, "", d, h);
     }
@@ -885,7 +856,7 @@ public class Contabilidad {
         List<Integer> aMov = new ArrayList<>(), pMov = new ArrayList<>();
         cargarMovimientosCuenta(cod, aMov, pMov);
         System.out.printf("Saldo inicial: %.2f (%s)%n", Math.abs(salIni), etiquetaSaldo(salIni, tipoCta));
-        if (aMov.isEmpty() && Math.abs(salIni) <= TOLERANCIA_SALDO) { System.out.println("Sin movimientos."); return; }
+        if (aMov.isEmpty() && Math.abs(salIni) <= Estado.TOLERANCIA_SALDO) { System.out.println("Sin movimientos."); return; }
         System.out.printf("%-5s %-12s %-24s %-8s %12s %12s%n", "As.", "Fecha", "Concepto", "Lado", "Monto", "Saldo");
         System.out.println("-".repeat(78));
         double sal = salIni;
@@ -894,7 +865,7 @@ public class Contabilidad {
             String tipo = partidaTipos.get(i).get(j); double monto = partidaMontos.get(i).get(j);
             sal += efectoSaldo(tipoCta, tipo, monto);
             System.out.printf("%-5d %-12s %-24s %-8s %12.2f %12.2f%n",
-                    i + 1, asientoFechas.get(i), recortar(asientoDescripciones.get(i), 24), etiquetaLado(tipo), monto, sal);
+                    i + 1, asientoFechas.get(i), Formato.recortar(asientoDescripciones.get(i), 24), Formato.etiquetaLado(tipo), monto, sal);
         }
         System.out.println("-".repeat(78));
         System.out.printf("Saldo final: %.2f (%s)%n", Math.abs(sal), etiquetaSaldo(sal, tipoCta));
@@ -936,7 +907,7 @@ public class Contabilidad {
         for (int k = 0; k < aMov.size(); k++) {
             int i = aMov.get(k), j = pMov.get(k);
             double monto = partidaMontos.get(i).get(j);
-            String fila = String.format("%-10s %-22s %12.2f", asientoFechas.get(i), recortar(asientoDescripciones.get(i), 22), monto);
+            String fila = String.format("%-10s %-22s %12.2f", asientoFechas.get(i), Formato.recortar(asientoDescripciones.get(i), 22), monto);
             if (partidaTipos.get(i).get(j).equalsIgnoreCase("Debito")) { fDeb.add(fila); tDeb += monto; }
             else { fHab.add(fila); tHab += monto; }
         }
@@ -958,15 +929,13 @@ public class Contabilidad {
         double sal = salIni + tDeb - tHab;
         double salNorm = tipoDeudor(tipoCta) ? sal : -sal;
         System.out.printf("%63s SALDO: %.2f (%s)%n", "", Math.abs(sal), etiquetaSaldo(salNorm, tipoCta));
-        if (!esCuentaContraria(cod) && salNorm < -TOLERANCIA_SALDO)
+        if (!esCuentaContraria(cod) && salNorm < -Estado.TOLERANCIA_SALDO)
             System.out.println("  AVISO: saldo en el lado contrario al normal para una cuenta de tipo " + tipoCta + ".");
         System.out.println("=".repeat(95));
     }
 
-    static String recortar(String t, int a) { return t == null ? "" : (t.length() <= a ? t : t.substring(0, a)); }
-
     static String etiquetaSaldo(double s, String tipoCta) {
-        if (Math.abs(s) <= TOLERANCIA_SALDO) return "Cero";
+        if (Math.abs(s) <= Estado.TOLERANCIA_SALDO) return "Cero";
         return (s > 0) == tipoDeudor(tipoCta) ? "Deudor" : "Acreedor";
     }
 
@@ -985,7 +954,7 @@ public class Contabilidad {
         System.out.printf("Utilidad bruta:  %.2f%n", uBruta);
         System.out.printf("Utilidad neta:   %.2f%n", uNeta);
         System.out.printf("Resultado:       %.2f (%s)%n", Math.abs(uNeta),
-                Math.abs(uNeta) <= TOLERANCIA ? "Cero" : uNeta > 0 ? "Utilidad" : "Perdida");
+                Math.abs(uNeta) <= Estado.TOLERANCIA ? "Cero" : uNeta > 0 ? "Utilidad" : "Perdida");
         mostrarNotaSaldosContrarios();
     }
 
@@ -994,11 +963,11 @@ public class Contabilidad {
         linea("\n=== BALANCE GENERAL ===",
                 descripcionRango(),
                 "Activo = Pasivo + Patrimonio + Resultado.",
-                rangoDesde.isEmpty() ? "Generado: " + fechaActual() : "Corte: " + fin);
+                rangoDesde.isEmpty() ? "Generado: " + Fechas.fechaActual() : "Corte: " + fin);
         System.out.printf("%-8s %-35s %12s%n", "Codigo", "Nombre", "Saldo");
         System.out.println("-".repeat(60));
         saldoContrarioEnReporte = false;
-        List<Double> saldos = saldosRango(FECHA_MIN, fin);
+        List<Double> saldos = saldosRango(Fechas.FECHA_MIN, fin);
         double tAct = mostrarSeccion("Activo", "ACTIVO", saldos);
         double tPas = mostrarSeccion("Pasivo", "PASIVO", saldos), tPat = mostrarSeccion("Patrimonio", "PATRIMONIO", saldos);
         double resultado = resultadoDeSaldos(saldos), patConRes = tPat + resultado;
@@ -1016,7 +985,7 @@ public class Contabilidad {
         if (cuadra(tAct, tPas + patConRes)) System.out.println("EL BALANCE CUADRA CORRECTAMENTE.");
         else { System.out.println("ADVERTENCIA: NO cuadra."); System.out.printf("Diferencia: %.2f%n", tAct - (tPas + patConRes)); }
         mostrarNotaSaldosContrarios();
-        if (!guardarBalance(rangoDesde.isEmpty() ? fechaActual() : fin, tAct, tPas, patConRes))
+        if (!guardarBalance(rangoDesde.isEmpty() ? Fechas.fechaActual() : fin, tAct, tPas, patConRes))
             System.out.println("ADVERTENCIA: no se guardo " + ARCHIVO_BALANCE + ".");
     }
 
@@ -1027,7 +996,7 @@ public class Contabilidad {
             if (!cuentaTipos.get(i).equals(tipo)) continue;
             double s = saldos.get(i);
             String marca = "";
-            if (!esCuentaContraria(cuentaCodigos.get(i)) && s < -TOLERANCIA_SALDO) { marca = " *"; saldoContrarioEnReporte = true; }
+            if (!esCuentaContraria(cuentaCodigos.get(i)) && s < -Estado.TOLERANCIA_SALDO) { marca = " *"; saldoContrarioEnReporte = true; }
             System.out.printf("%-8s %-35s %12.2f%s%n", cuentaCodigos.get(i), cuentaNombres.get(i), s, marca);
             total += s;
         }
@@ -1041,7 +1010,7 @@ public class Contabilidad {
     }
 
     static boolean guardarBalance(String fecha, double act, double pas, double pat) {
-        return escribirArchivoAtomico(ARCHIVO_BALANCE, fecha + "|" + formatearMonto(act) + "|" + formatearMonto(pas) + "|" + formatearMonto(pat) + System.lineSeparator());
+        return escribirArchivoAtomico(ARCHIVO_BALANCE, fecha + "|" + Formato.formatearMonto(act) + "|" + Formato.formatearMonto(pas) + "|" + Formato.formatearMonto(pat) + System.lineSeparator());
     }
 
     // ============================================================
@@ -1156,8 +1125,8 @@ public class Contabilidad {
     static boolean existeCuenta(String cod) { return indiceCuenta(cod) >= 0; }
 
     static boolean existeCodigoNormalizado(String cod) {
-        String n = normalizarTexto(cod);
-        for (int i = 0; i < cuentaCodigos.size(); i++) if (normalizarTexto(cuentaCodigos.get(i)).equals(n)) return true;
+        String n = Formato.normalizarTexto(cod);
+        for (int i = 0; i < cuentaCodigos.size(); i++) if (Formato.normalizarTexto(cuentaCodigos.get(i)).equals(n)) return true;
         return false;
     }
 
@@ -1170,21 +1139,13 @@ public class Contabilidad {
         int i = indiceCuenta(cod); return i < 0 ? "(no existe)" : cuentaNombres.get(i);
     }
 
-    static String etiquetaLado(String t) { return t.equalsIgnoreCase("Debito") ? "Debe" : "Haber"; }
-
     static List<String> buscarCuentas(String term) {
         List<String> r = new ArrayList<>();
-        String q = normalizarTexto(term);
+        String q = Formato.normalizarTexto(term);
         for (int i = 0; i < cuentaCodigos.size(); i++)
-            if (normalizarTexto(cuentaCodigos.get(i)).contains(q) || normalizarTexto(cuentaNombres.get(i)).contains(q))
+            if (Formato.normalizarTexto(cuentaCodigos.get(i)).contains(q) || Formato.normalizarTexto(cuentaNombres.get(i)).contains(q))
                 r.add(cuentaCodigos.get(i));
         return r;
-    }
-
-    static String normalizarTexto(String t) {
-        if (t == null) return "";
-        String s = Normalizer.normalize(t, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
-        return s.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ").trim();
     }
 
     static void mostrarCuentaEncontrada(int idx) {
@@ -1232,11 +1193,11 @@ public class Contabilidad {
         if (op == 0 || entradaCerrada) return;
         String fecha = "", term = "";
         if (op == 1) { fecha = leerFecha("Fecha a buscar"); if (fecha == null) { System.out.println("Cancelado."); return; } }
-        if (op == 2) { String tx = leerString("Texto: "); if (tx == null) { entradaCerrada = true; System.out.println("Cancelado."); return; } term = normalizarTexto(tx); }
+        if (op == 2) { String tx = leerString("Texto: "); if (tx == null) { entradaCerrada = true; System.out.println("Cancelado."); return; } term = Formato.normalizarTexto(tx); }
         List<Integer> idx = new ArrayList<>();
         for (int i = 0; i < asientoFechas.size(); i++) {
-            if (!fechaEnRango(asientoFechas.get(i), vistaInicio(), vistaFin())) continue;
-            boolean ok = op == 1 ? asientoFechas.get(i).equals(fecha) : normalizarTexto(asientoDescripciones.get(i)).contains(term);
+            if (!Fechas.fechaEnRango(asientoFechas.get(i), vistaInicio(), vistaFin())) continue;
+            boolean ok = op == 1 ? asientoFechas.get(i).equals(fecha) : Formato.normalizarTexto(asientoDescripciones.get(i)).contains(term);
             if (ok) idx.add(i);
         }
         System.out.println("\n=== RESULTADOS ===");
