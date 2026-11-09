@@ -29,6 +29,28 @@ El programa debe ejecutarse desde la carpeta que contiene `data/`, porque usa
 rutas relativas. Si `data/` no existe, se crea automaticamente con el catalogo
 de 75 cuentas y un periodo predeterminado.
 
+## Estructura del codigo
+
+El codigo esta separado en nueve modulos `static`. Ninguno se instancia: todos
+se usan mediante `Modulo.metodo()`.
+
+```text
+src/
+  Contabilidad.java   main, menus, opcion 12 y salida
+  Estado.java         listas paralelas, rango de reportes y tolerancias
+  Consola.java        Scanner, menus y lecturas validadas
+  Fechas.java         fechas y ordenamiento
+  Formato.java        montos, texto y etiquetas
+  Persistencia.java   archivos, bloqueos, carga/guardado y respaldos
+  Cuentas.java        catalogo, tipos, creacion y busqueda de cuentas
+  Asientos.java       registro, saldos, movimientos y busquedas
+  Reportes.java       balanza, diario, mayor, cuentas T y balances
+```
+
+La logica contable sigue usando listas paralelas en `Estado` y variables
+primitivas. No se usan objetos de dominio, herencia, polimorfismo ni
+interfaces.
+
 ## Menu
 
 | Opcion | Funcion |
