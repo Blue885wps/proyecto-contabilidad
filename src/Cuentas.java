@@ -88,7 +88,7 @@ public class Cuentas {
                     "Los reportes pueden estar incompletos. Corrija el archivo y reinicie.");
             return;
         }
-        Contabilidad.recalcularSaldos();
+        Asientos.recalcularSaldos();
         if (Contabilidad.bloquearGuardadoAsientos)
             System.out.println("ADVERTENCIA: no se pudo respaldar " + Contabilidad.ARCHIVO_ASIENTOS + "; no se guardara hasta corregir la carpeta backup/.");
         if (estabaBloqueado) System.out.println("El bloqueo de guardado del catalogo fue levantado.");
@@ -111,7 +111,7 @@ public class Cuentas {
         System.out.println(Estado.rangoDesde.isEmpty() ? "Saldo = historico completo." : "Saldo = movimientos dentro del rango configurado.");
         System.out.printf("%-8s %-35s %-15s %12s%n", "Codigo", "Nombre", "Tipo", "Saldo");
         System.out.println("-".repeat(75));
-        List<Double> saldos = Contabilidad.saldosVista();
+        List<Double> saldos = Asientos.saldosVista();
         for (String c : enc) {
             int i = indiceCuenta(c);
             System.out.printf("%-8s %-35s %-15s %12.2f%n", Estado.cuentaCodigos.get(i), Estado.cuentaNombres.get(i), Estado.cuentaTipos.get(i), saldos.get(i));
@@ -122,7 +122,7 @@ public class Cuentas {
         System.out.println("\n=== CATALOGO DE CUENTAS ===");
         System.out.println(Estado.descripcionRango());
         System.out.println(Estado.rangoDesde.isEmpty() ? "Saldo = historico completo." : "Saldo = movimientos dentro del rango configurado.");
-        List<Double> saldos = Contabilidad.saldosVista();
+        List<Double> saldos = Asientos.saldosVista();
         System.out.printf("%-8s %-35s %-15s %12s%n", "Codigo", "Nombre", "Tipo", "Saldo");
         System.out.println("-".repeat(75));
         for (int i = 0; i < Estado.cuentaCodigos.size(); i++) {
