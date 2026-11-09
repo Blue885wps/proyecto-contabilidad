@@ -24,6 +24,10 @@ proyecto contabilidad/
 └── AGENTS.md                # Este archivo
 ```
 
+> Desde el Cambio 33 se permiten archivos `.java` adicionales como modulos
+> `static` de organizacion. La separacion efectiva se definira en la fase de
+> modularizacion; por ahora todo el codigo sigue en `src/Contabilidad.java`.
+
 ## Reglas de codigo
 
 ### Estructura de datos
@@ -33,14 +37,25 @@ proyecto contabilidad/
 - NO usar **Map**, **HashMap**, **LinkedHashMap** ni otras colecciones
   como estructura de datos principal del dominio
 
-### Programacion Orientada a Objetos (POO)
+### Programacion Orientada a Objetos (POO) y modularizacion
 
-- NO usar Programacion Orientada a Objetos (POO)
-- NO crear clases, objetos, interfaces, herencia, polimorfismo
-- Usar exclusivamente estructuras de datos basicas y variables primitivas
-- Las unicas llamadas a metodos permitidas son de clases estandar de Java (String, ArrayList, etc.)
-- Cada cuenta se representa mediante listas paralelas: `cuentaCodigos`, `cuentaNombres`, `cuentaTipos`, `cuentaSaldos`
-- Cada asiento se representa mediante listas paralelas y anidadas: `asientoFechas`, `asientoDescripciones`, `asientoTotales`, `partidaCodigos`, `partidaTipos`, `partidaMontos`
+- La logica contable y el dominio se implementan con estructuras de datos
+  basicas (ArrayList, listas paralelas, colas, matrices, vectores, pilas) y
+  variables primitivas. No se representan cuentas, asientos, partidas ni
+  resultados con objetos de dominio.
+- Se permite crear clases y archivos `.java` adicionales **unicamente** como
+  modulos de organizacion del codigo. Cada modulo contiene metodos y constantes
+  `static`; no se usa para crear objetos de dominio.
+- NO usar herencia, polimorfismo ni interfaces.
+- NO instanciar clases del proyecto para representar el dominio. Las clases
+  adicionales se usan solo mediante sus metodos `static`.
+- Las llamadas a metodos permitidas son las de clases estandar de Java y las
+  de los modulos `static` del proyecto.
+- Cada cuenta se representa mediante listas paralelas: `cuentaCodigos`,
+  `cuentaNombres`, `cuentaTipos`, `cuentaSaldos`.
+- Cada asiento se representa mediante listas paralelas y anidadas:
+  `asientoFechas`, `asientoDescripciones`, `asientoTotales`, `partidaCodigos`,
+  `partidaTipos`, `partidaMontos`.
 
 ### Patrones de codigo
 
@@ -873,6 +888,34 @@ porque sus cuentas no existian todavia.
   cambios del proyecto.
 - No se modifico el formato de los archivos de `data/` ni la logica contable.
 
+### Cambio 33: Bloqueo seguro en la opcion 1.4 y reglas de modularizacion
+
+**Razon:** La opcion 1.4 podia desbloquear el guardado de asientos despues de
+un fallo de recarga o de respaldo, con riesgo de sobrescribir `asientos.txt`
+con datos parciales. Ademas, el usuario autorizo crear clases y archivos
+adicionales unicamente para organizar el codigo, sin cambiar el modelo de
+listas paralelas ni introducir POO de dominio.
+
+**Impacto:**
+- `src/Contabilidad.java`: `reconstruirCatalogo()` desbloquea antes de
+  recargar, vuelve a bloquear asientos y cuentas si la recarga falla, conserva
+  el bloqueo si falla el respaldo y avisa cuando no se guardara
+  `asientos.txt`.
+- `cargarAsientosTexto()`: el mensaje de fallo de respaldo ya no sugiere la
+  opcion 1.4; indica corregir `backup/` y reiniciar.
+- `registrarAsiento()` y `crearCuenta()`: mensajes genericos cuando el catalogo
+  o el guardado estan bloqueados, sin afirmar que el catalogo esta vacio.
+- `AGENTS.md`: se permite crear clases y archivos `.java` adicionales como
+  modulos `static` de organizacion. Se mantienen prohibidos los objetos de
+  dominio, la herencia, el polimorfismo y las interfaces.
+- `README.md`: se documenta el bloqueo de guardado cuando falla la recarga o el
+  respaldo en la opcion 1.4.
+- `tests/pruebas_fase_d.ps1`: se agrega una prueba de fallo de respaldo de
+  asientos invalidos que verifica que `asientos.txt` no se sobrescribe.
+- No se modifica el formato de `data/` ni la logica contable.
+- La separacion fisica en modulos se hara en una fase posterior; este cambio
+  solo deja las reglas y el arreglo de 1.4.
+
 ## Regla de comunicacion
 
 Siempre incluir un resumen de los cambios realizados y la razon de cada uno.
@@ -882,8 +925,11 @@ el cambio. Usar un formato claro y conciso con viñetas o secciones.
 ## Compilacion y ejecucion
 
 ```powershell
-# Compilar
+# Compilar (estado actual, un solo archivo)
 javac -d bin src/Contabilidad.java
+
+# Compilar todos los modulos cuando existan archivos adicionales
+javac -d bin (Get-ChildItem src\*.java).FullName
 
 # Ejecutar
 java -cp bin Contabilidad
@@ -961,13 +1007,14 @@ java -cp bin Contabilidad
     cierre sin recalcular los saldos.
 
 14. Si `cuentas.txt` queda vacio o sin lineas validas, el programa arranca con
-    `bloquearGuardadoCuentas = true` y con `bloqueoPorCatalogo = true` cuando
-    `asientos.txt` tiene asientos: en ese estado `data/asientos.txt` no debe
+    `bloquearGuardadoCuentas = true`: en ese estado `data/asientos.txt` no debe
     sobrescribirse, porque sus cuentas todavia no existen y los asientos se
-    perderian. La opcion 1.4 (`reconstruirCatalogo()`) es la unica via de
+    perderian. La opcion 1.4 (`reconstruirCatalogo()`) es la via de
     recuperacion: reconstruye las 75 cuentas, guarda la copia del archivo
-    anterior y recarga los asientos. No se debe eliminar `bloqueoPorCatalogo`
-    sin recargar `asientos.txt` antes.
+    anterior y recarga los asientos. Si la recarga falla, se activan
+    `bloquearGuardadoAsientos` y `bloquearGuardadoCuentas` hasta reiniciar; si
+    solo falla el respaldo de asientos invalidos, se mantiene
+    `bloquearGuardadoAsientos` para no sobrescribir el original.
 
 15. Todas las lecturas de la consola pasan por `leerEntrada()`. Cuando se agota
     la entrada, esa funcion activa `entradaCerrada` y devuelve `null`. Todo
@@ -975,4 +1022,9 @@ java -cp bin Contabilidad
     `leerInt()` devuelve el minimo, `leerDouble()` devuelve `0.0` y
     `leerFecha()` devuelve `null`. Ningun metodo debe llamar `equals`, `split` o
     `contains` sobre esos retornos sin verificarlos.
+
+16. Las clases adicionales son solo modulos de organizacion con metodos
+    `static`. No representan cuentas, asientos ni partidas y no se instancian.
+    La modularizacion fisica se definira en una fase posterior; hasta entonces,
+    todo el codigo sigue en `src/Contabilidad.java`.
 
