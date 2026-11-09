@@ -7,6 +7,12 @@ public class Asientos {
         return codigo.equals("1790") || codigo.equals("1890") || codigo.equals("3120")
                 || codigo.equals("3200") || codigo.equals("3500");
     }
+    static double totalLado(List<String> tips, List<Double> mons, String lado) {
+        double total = 0;
+        for (int i = 0; i < tips.size() && i < mons.size(); i++)
+            if (tips.get(i).equalsIgnoreCase(lado)) total += mons.get(i);
+        return total;
+    }
 
     static void agregarAsiento(String fecha, String descripcion, List<String> cods,
             List<String> tips, List<Double> mons, double total, String tipo) {
@@ -24,12 +30,12 @@ public class Asientos {
     }
 
     static void registrarAsiento() {
-        if (Contabilidad.bloquearGuardadoAsientos || Contabilidad.bloquearGuardadoCuentas) {
-            if (Contabilidad.bloquearGuardadoCuentas)
+        if (Persistencia.bloquearGuardadoAsientos || Persistencia.bloquearGuardadoCuentas) {
+            if (Persistencia.bloquearGuardadoCuentas)
                 Consola.linea("No se pueden registrar asientos: el catalogo o el guardado estan bloqueados.",
                         "Corrija los archivos de datos y reinicie el programa.");
             else
-                System.out.println("No se pueden registrar asientos: corrija " + Contabilidad.ARCHIVO_ASIENTOS + " y reinicie.");
+                System.out.println("No se pueden registrar asientos: corrija " + Persistencia.ARCHIVO_ASIENTOS + " y reinicie.");
             return;
         }
         Consola.linea("\n--- REGISTRAR ASIENTO ---",
@@ -76,8 +82,8 @@ public class Asientos {
         if (!Consola.confirmar("Guardar? (S/N): ")) { System.out.println("Asiento cancelado. No se guardo nada."); return; }
         agregarAsiento(fecha, descripcion, cods, tips, mons, totales[0], "NORMAL");
         recalcularSaldos();
-        if (!Contabilidad.guardarAsientos()) { quitarUltimoAsiento(); recalcularSaldos(); System.out.println("Error guardando."); return; }
-        if (!Contabilidad.guardarCuentas()) System.out.println("Asiento guardado, pero no se actualizo " + Contabilidad.ARCHIVO_CUENTAS + ".");
+        if (!Persistencia.guardarAsientos()) { quitarUltimoAsiento(); recalcularSaldos(); System.out.println("Error guardando."); return; }
+        if (!Persistencia.guardarCuentas()) System.out.println("Asiento guardado, pero no se actualizo " + Persistencia.ARCHIVO_CUENTAS + ".");
         System.out.println("Asiento registrado exitosamente.");
     }
 

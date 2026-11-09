@@ -23,7 +23,7 @@ public class Cuentas {
             for (String linea : grupo.split(";")) {
                 String[] partes = linea.split("\\|"); agregarCuenta(partes[0], partes[1], partes[2]);
             }
-        if (!Contabilidad.guardarCuentas()) System.out.println("ADVERTENCIA: no se pudo guardar el catalogo inicial.");
+        if (!Persistencia.guardarCuentas()) System.out.println("ADVERTENCIA: no se pudo guardar el catalogo inicial.");
     }
 
     static List<String> codigosCatalogoEstandar() {
@@ -36,7 +36,7 @@ public class Cuentas {
     static List<String> codigosUsadosNoEstandar() {
         List<String> huerfanos = new ArrayList<>();
         List<String> estandar = codigosCatalogoEstandar();
-        File file = new File(Contabilidad.ARCHIVO_ASIENTOS);
+        File file = new File(Persistencia.ARCHIVO_ASIENTOS);
         if (!file.exists()) return huerfanos;
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String linea;
@@ -48,8 +48,8 @@ public class Cuentas {
                 if (!codigo.isEmpty() && !estandar.contains(codigo) && !huerfanos.contains(codigo)) huerfanos.add(codigo);
             }
         } catch (IOException e) {
-            System.out.println("ADVERTENCIA: no se pudo revisar " + Contabilidad.ARCHIVO_ASIENTOS + ": " + e.getMessage());
-            huerfanos.add("(no se pudo revisar " + Contabilidad.ARCHIVO_ASIENTOS + ")");
+            System.out.println("ADVERTENCIA: no se pudo revisar " + Persistencia.ARCHIVO_ASIENTOS + ": " + e.getMessage());
+            huerfanos.add("(no se pudo revisar " + Persistencia.ARCHIVO_ASIENTOS + ")");
         }
         return huerfanos;
     }
@@ -71,26 +71,26 @@ public class Cuentas {
         } else {
             System.out.println("El catalogo esta vacio o no tiene cuentas validas. Se creara el catalogo estandar de 75 cuentas.");
         }
-        if (!Contabilidad.respaldarArchivoInvalido(Contabilidad.ARCHIVO_CUENTAS, "cuentas_antes_reconstruir")) {
+        if (!Persistencia.respaldarArchivoInvalido(Persistencia.ARCHIVO_CUENTAS, "cuentas_antes_reconstruir")) {
             System.out.println("No se pudo guardar la copia de seguridad. No se reconstruyo el catalogo.");
             return;
         }
-        boolean estabaBloqueado = Contabilidad.bloquearGuardadoCuentas;
-        Contabilidad.bloquearGuardadoCuentas = false;
+        boolean estabaBloqueado = Persistencia.bloquearGuardadoCuentas;
+        Persistencia.bloquearGuardadoCuentas = false;
         Estado.cuentaCodigos.clear(); Estado.cuentaNombres.clear(); Estado.cuentaTipos.clear(); Estado.cuentaSaldos.clear();
         inicializarCuentas();
-        Contabilidad.bloquearGuardadoAsientos = false;
-        if (!Contabilidad.cargarAsientosTexto(Contabilidad.ARCHIVO_ASIENTOS)) {
-            Contabilidad.bloquearGuardadoAsientos = true;
-            Contabilidad.bloquearGuardadoCuentas = true;
+        Persistencia.bloquearGuardadoAsientos = false;
+        if (!Persistencia.cargarAsientosTexto(Persistencia.ARCHIVO_ASIENTOS)) {
+            Persistencia.bloquearGuardadoAsientos = true;
+            Persistencia.bloquearGuardadoCuentas = true;
             Consola.linea("No se pudieron recargar los asientos.",
-                    "No se guardara " + Contabilidad.ARCHIVO_ASIENTOS + " ni se haran otros cambios hasta reiniciar.",
+                    "No se guardara " + Persistencia.ARCHIVO_ASIENTOS + " ni se haran otros cambios hasta reiniciar.",
                     "Los reportes pueden estar incompletos. Corrija el archivo y reinicie.");
             return;
         }
         Asientos.recalcularSaldos();
-        if (Contabilidad.bloquearGuardadoAsientos)
-            System.out.println("ADVERTENCIA: no se pudo respaldar " + Contabilidad.ARCHIVO_ASIENTOS + "; no se guardara hasta corregir la carpeta backup/.");
+        if (Persistencia.bloquearGuardadoAsientos)
+            System.out.println("ADVERTENCIA: no se pudo respaldar " + Persistencia.ARCHIVO_ASIENTOS + "; no se guardara hasta corregir la carpeta backup/.");
         if (estabaBloqueado) System.out.println("El bloqueo de guardado del catalogo fue levantado.");
         System.out.println("Catalogo reconstruido con " + Estado.cuentaCodigos.size() + " cuentas estandar.");
         System.out.println("Asientos recargados: " + Estado.asientoFechas.size() + ".");
@@ -134,7 +134,7 @@ public class Cuentas {
     static boolean tipoValido(String tipo) { return TIPOS.contains(tipo); }
 
     static void crearCuenta() {
-        if (Contabilidad.bloquearGuardadoCuentas) {
+        if (Persistencia.bloquearGuardadoCuentas) {
             Consola.linea("No se pueden crear cuentas: el catalogo o el guardado estan bloqueados.",
                     "Corrija los archivos de datos y reinicie el programa.");
             return;
@@ -160,7 +160,7 @@ public class Cuentas {
             break;
         }
         agregarCuenta(codigo, nombre, tipo);
-        if (!Contabilidad.guardarCuentas()) { Estado.cuentaCodigos.remove(Estado.cuentaCodigos.size()-1); Estado.cuentaNombres.remove(Estado.cuentaNombres.size()-1); Estado.cuentaTipos.remove(Estado.cuentaTipos.size()-1); Estado.cuentaSaldos.remove(Estado.cuentaSaldos.size()-1); System.out.println("Error guardando."); return; }
+        if (!Persistencia.guardarCuentas()) { Estado.cuentaCodigos.remove(Estado.cuentaCodigos.size()-1); Estado.cuentaNombres.remove(Estado.cuentaNombres.size()-1); Estado.cuentaTipos.remove(Estado.cuentaTipos.size()-1); Estado.cuentaSaldos.remove(Estado.cuentaSaldos.size()-1); System.out.println("Error guardando."); return; }
         System.out.println("Cuenta creada exitosamente: " + codigo + " - " + nombre + " (" + tipo + ").");
     }
 
