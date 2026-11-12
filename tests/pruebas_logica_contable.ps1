@@ -75,7 +75,7 @@ function Invoke-Steps {
 try {
     New-Item -ItemType Directory -Path (Join-Path $temp "bin") -Force | Out-Null
     Write-Host "Compilando..."
-    & javac -d (Join-Path $temp "bin") (Get-ChildItem (Join-Path $root "src\*.java")).FullName
+    & javac --release 17 -d (Join-Path $temp "bin") (Get-ChildItem (Join-Path $root "src\*.java")).FullName
     if ($LASTEXITCODE -ne 0) { throw "No se pudo compilar src\*.java" }
     Write-Host "OK: compilacion"
 
@@ -574,7 +574,7 @@ try {
         "}"
     )
     Write-Utf8 $helper ($helperLines -join "`r`n")
-    & javac -cp (Join-Path $temp "bin") -d (Join-Path $temp "bin") $helper
+    & javac --release 17 -cp (Join-Path $temp "bin") -d (Join-Path $temp "bin") $helper
     if ($LASTEXITCODE -ne 0) { throw "No se pudo compilar PruebaSaldoContrario" }
     $out = & java -cp (Join-Path $temp "bin") PruebaSaldoContrario
     if ($LASTEXITCODE -ne 0 -or ($out -notcontains "OK: esSaldoContrario")) { throw "FALLO: esSaldoContrario" }

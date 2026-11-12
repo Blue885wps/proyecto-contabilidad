@@ -92,7 +92,7 @@ try {
     New-Item -ItemType Directory -Path (Join-Path $temp "bin") -Force | Out-Null
 
     Write-Host "Compilando..."
-    & javac -d (Join-Path $temp "bin") (Get-ChildItem (Join-Path $root "src\*.java")).FullName
+    & javac --release 17 -d (Join-Path $temp "bin") (Get-ChildItem (Join-Path $root "src\*.java")).FullName
     if ($LASTEXITCODE -ne 0) {
         throw "No se pudo compilar src\*.java"
     }

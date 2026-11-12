@@ -974,7 +974,7 @@ el cambio. Usar un formato claro y conciso con viñetas o secciones.
 
 ```powershell
 # Compilar todos los modulos
-javac -d bin (Get-ChildItem src\*.java).FullName
+javac --release 17 -d bin (Get-ChildItem src\*.java).FullName
 
 # Ejecutar
 java -cp bin Contabilidad
@@ -982,6 +982,11 @@ java -cp bin Contabilidad
 
 Si se elimina o renombra un modulo, conviene borrar los `.class` de `bin/`
 antes de recompilar para no dejar clases de versiones anteriores.
+
+El boton **Run** de VS Code usa el JRE 25 incluido en la extension Red Hat Java.
+Compilar con un JDK 26 sin `--release` genera class file version 70 y produce
+`UnsupportedClassVersionError` (el runtime solo acepta hasta 69). Usar siempre
+`--release 17` o `--release 25`.
 
 ## Notas para el desarrollador
 
@@ -1093,6 +1098,12 @@ antes de recompilar para no dejar clases de versiones anteriores.
     tienen saldo, porque el patrimonio podria estar sumando dos veces el mismo
     resultado. `3200 Resultados de ejercicios anteriores` forma parte del
     patrimonio y no se suma al resultado del ejercicio.
+
+20. Compilar siempre con `--release 17`. El boton **Run** de VS Code usa el JRE
+    25 de la extension Red Hat Java; un `javac` de JDK 26 sin `--release`
+    produce class file version 70 y falla con `UnsupportedClassVersionError`.
+    Las suites de pruebas compilan en un directorio temporal y se ejecutan con
+    el mismo JDK, por lo que no se ven afectadas.
 
 ### Cambio 35: Simplificacion segun la rubrica del curso
 
@@ -1259,4 +1270,22 @@ anteriores que podian mezclarse con los fuentes actuales.
   recompilados desde los cuatro modulos actuales.
 - `README.md`: el ejemplo de `cuentas.txt` refleja Caja en 11.500,00.
 - No se modifico codigo, el formato de los archivos ni la logica contable.
+
+### Cambio 39: Compatibilidad de clases con el runtime de VS Code
+
+**Razon:** Al recompilar manualmente con JDK 26, las clases quedaron en class
+file version 70 (Java 26), pero el boton **Run** de VS Code usa el JRE 25
+incluido en la extension Red Hat Java, que solo acepta hasta class 69. El
+programa fallaba con `UnsupportedClassVersionError` antes de mostrar el menu.
+
+**Impacto:**
+- `bin/` del proyecto y `bin/` del workspace Java de VS Code se recompilaron con
+  `javac --release 17` (class 61), compatibles con Java 17 o superior.
+- Se verifico la ejecucion con el mismo JRE 25 que usa VS Code: menu, balance y
+  cierre funcionan sin errores.
+- `README.md`: requisito Java 17 o superior y comando de compilacion con
+  `--release 17`; se explica el error de version.
+- `AGENTS.md`: comando de compilacion actualizado y nota 20 para el
+  desarrollador.
+- No se modifico codigo, datos ni logica contable.
 

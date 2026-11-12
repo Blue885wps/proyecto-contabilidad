@@ -10,7 +10,7 @@ entrega. Conservar esa autorizacion para la defensa.
 
 ## Requisitos
 
-- Java 11 o superior (`java` y `javac` en el PATH).
+- Java 17 o superior (`java` y `javac` en el PATH).
 - Windows PowerShell para el script de pruebas incluido.
 
 ## Compilar y ejecutar
@@ -18,13 +18,18 @@ entrega. Conservar esa autorizacion para la defensa.
 Desde la carpeta del proyecto:
 
 ```powershell
-javac -d bin (Get-ChildItem src\*.java).FullName
+javac --release 17 -d bin (Get-ChildItem src\*.java).FullName
 java -cp bin Contabilidad
 ```
 
 Si se elimino o renombro un modulo, borre `bin/` antes de compilar para no dejar
 clases viejas. Ejecute el programa desde la carpeta que contiene `data/`, porque
 las rutas son relativas.
+
+`--release 17` mantiene las clases compatibles con el runtime Java 25 que usa el
+boton **Run** de VS Code. Si se compila con un JDK mas nuevo sin `--release`, las
+clases quedan en una version superior y VS Code falla con
+`UnsupportedClassVersionError: ... class file version 70.0`.
 
 Si `data/` no existe, se crea automaticamente con el catalogo estandar de 75
 cuentas. Si `cuentas.txt` no existe, el catalogo se guarda al iniciar.
