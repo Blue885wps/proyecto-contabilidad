@@ -39,9 +39,12 @@ public class Reportes {
         System.out.println("-".repeat(95));
         System.out.printf("%-10s %-22s %12.2f | %-10s %-22s %12.2f%n", "TOTAL DEBE", "", totalDebe, "TOTAL HABER", "", totalHaber);
         double saldoDebito = totalDebe - totalHaber;
-        double saldoNaturaleza = naturaleza.equals("Acreedora") ? -saldoDebito : saldoDebito;
-        System.out.printf("%63s SALDO: %.2f (%s)%n", "", Math.abs(saldoDebito),
-                Asientos.etiquetaSaldoNaturaleza(saldoNaturaleza, naturaleza));
+        double saldoTipo = Asientos.tipoDeudor(tipo) ? saldoDebito : -saldoDebito;
+        double saldoNaturaleza = Asientos.saldoNaturaleza(idxCta, saldoTipo);
+        boolean contrario = Asientos.esSaldoContrario(idxCta, saldoNaturaleza);
+        System.out.printf("%63s SALDO: %.2f (%s%s)%n", "", Math.abs(saldoDebito),
+                Asientos.etiquetaSaldoCuenta(idxCta, saldoNaturaleza), contrario ? ", contrario" : "");
+        if (contrario) System.out.println("ADVERTENCIA: saldo contrario a la naturaleza " + naturaleza + " de la cuenta.");
         System.out.println("=".repeat(95));
     }
 
@@ -69,7 +72,10 @@ public class Reportes {
                     Datos.recortar(Datos.asientoDescripciones.get(i), 24), Datos.etiquetaLado(lado), monto, saldo);
         }
         System.out.println("-".repeat(78));
-        System.out.printf("Saldo final: %.2f (%s)%n", Math.abs(saldo), Asientos.etiquetaSaldoNaturaleza(saldo, naturaleza));
+        boolean contrario = Asientos.esSaldoContrario(idx, saldo);
+        System.out.printf("Saldo final: %.2f (%s%s)%n", Math.abs(saldo),
+                Asientos.etiquetaSaldoCuenta(idx, saldo), contrario ? ", contrario" : "");
+        if (contrario) System.out.println("ADVERTENCIA: saldo contrario a la naturaleza " + naturaleza + " de la cuenta.");
     }
 
     static void verLibroDiario() {
@@ -152,6 +158,7 @@ public class Reportes {
         System.out.println("\n=== BALANCE GENERAL ===");
         System.out.println("Formula: Activo = Pasivo + Patrimonio + Resultado.");
         System.out.println("El resultado del ejercicio se suma al patrimonio para verificar la igualdad.");
+        System.out.println("3200 Resultados de ejercicios anteriores forma parte del patrimonio; no es el resultado del ejercicio.");
         System.out.println("Generado: " + Datos.fechaActual());
         System.out.printf("%-8s %-35s %12s%n", "Codigo", "Nombre", "Saldo");
         System.out.println("-".repeat(60));
@@ -163,6 +170,7 @@ public class Reportes {
         double patrimonioConResultado = totalPatrimonio + resultado;
         System.out.println("\n-- RESULTADO --");
         System.out.printf("%-44s %12.2f%n", "Resultado acumulado:", resultado);
+        avisarDobleConteo(saldos, resultado);
         System.out.println("\n" + "-".repeat(60));
         System.out.printf("Total Pasivo + Patrimonio + Resultado: %.2f%n", totalPasivo + patrimonioConResultado);
         System.out.printf("Diferencia: %.2f%n", totalActivo - (totalPasivo + patrimonioConResultado));
@@ -170,6 +178,21 @@ public class Reportes {
         else { System.out.println("ADVERTENCIA: EL BALANCE NO CUADRA."); System.out.printf("Diferencia: %.2f%n", totalActivo - (totalPasivo + patrimonioConResultado)); }
         if (!Datos.guardarBalance(Datos.fechaActual(), totalActivo, totalPasivo, patrimonioConResultado))
             System.out.println("ADVERTENCIA: no se guardo " + Datos.ARCHIVO_BALANCE + ".");
+    }
+
+    static void avisarDobleConteo(List<Double> saldos, double resultado) {
+        if (Math.abs(resultado) <= Datos.TOLERANCIA) return;
+        int idx3110 = Datos.indiceCuenta("3110"), idx3120 = Datos.indiceCuenta("3120");
+        double saldo3110 = idx3110 >= 0 ? saldos.get(idx3110) : 0;
+        double saldo3120 = idx3120 >= 0 ? saldos.get(idx3120) : 0;
+        if (Math.abs(saldo3110) <= Datos.TOLERANCIA && Math.abs(saldo3120) <= Datos.TOLERANCIA) return;
+        System.out.println();
+        System.out.println("ADVERTENCIA: posible doble conteo del resultado del ejercicio.");
+        System.out.printf("  Resultado en cuentas nominales: %.2f. Saldo de 3110: %.2f. Saldo de 3120: %.2f.%n",
+                resultado, saldo3110, saldo3120);
+        System.out.println("  Las cuentas nominales ya generan el resultado y 3110/3120 tambien lo contienen.");
+        System.out.println("  Si 3110/3120 refleja ese mismo resultado, el patrimonio lo estaria sumando dos veces.");
+        System.out.println("  Revise esas cuentas: el sistema no realiza cierre contable automatico.");
     }
 
     static double mostrarSeccion(String tipo, String titulo, List<Double> saldos) {

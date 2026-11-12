@@ -17,10 +17,14 @@ public class Asientos {
 
     static double efectoSaldoNaturaleza(int idxCuenta, String tipoPartida, double monto) {
         boolean debito = tipoPartida.equalsIgnoreCase("Debito");
-        return esNaturalezaAcreedora(idxCuenta) ? (debito ? -monto : monto) : (debito ? monto : -monto);
+        if (esNaturalezaAcreedora(idxCuenta)) return debito ? -monto : monto;
+        if (esNaturalezaMixta(idxCuenta))
+            return tipoDeudor(Datos.cuentaTipos.get(idxCuenta)) == debito ? monto : -monto;
+        return debito ? monto : -monto;
     }
 
     static double saldoNaturaleza(int idxCuenta, double saldoTipo) {
+        if (esNaturalezaMixta(idxCuenta)) return saldoTipo;
         double saldoDebito = tipoDeudor(Datos.cuentaTipos.get(idxCuenta)) ? saldoTipo : -saldoTipo;
         return esNaturalezaAcreedora(idxCuenta) ? -saldoDebito : saldoDebito;
     }
@@ -37,6 +41,18 @@ public class Asientos {
         if (naturaleza.equals("Deudora")) return saldo > 0 ? "Deudor" : "Acreedor";
         if (naturaleza.equals("Acreedora")) return saldo > 0 ? "Acreedor" : "Deudor";
         return saldo > 0 ? "Deudor" : "Acreedor";
+    }
+
+    static boolean esSaldoContrario(int idxCuenta, double saldoNaturaleza) {
+        return !esNaturalezaMixta(idxCuenta) && saldoNaturaleza < -Datos.TOLERANCIA;
+    }
+
+    static String etiquetaSaldoCuenta(int idxCuenta, double saldoNaturaleza) {
+        if (Math.abs(saldoNaturaleza) <= Datos.TOLERANCIA) return "Cero";
+        if (!esNaturalezaMixta(idxCuenta))
+            return etiquetaSaldoNaturaleza(saldoNaturaleza, Datos.cuentaNaturalezas.get(idxCuenta));
+        boolean deudor = tipoDeudor(Datos.cuentaTipos.get(idxCuenta)) == (saldoNaturaleza > 0);
+        return deudor ? "Deudor" : "Acreedor";
     }
 
     static double totalLado(List<String> tipos, List<Double> montos, String lado) {

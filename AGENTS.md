@@ -1076,13 +1076,23 @@ antes de recompilar para no dejar clases de versiones anteriores.
     en `cuentaNaturalezas`. Una cuenta no Mixta no puede quedar con saldo
     contrario: la validacion se aplica al registrar partidas y al cargar
     `asientos.txt`. Las excepciones del catalogo estandar son `1790` y `1890`
-    (`Acreedora`), `3120` y `3500` (`Deudora`) y `3200` (`Mixta`).
+    (`Acreedora`), `3120` y `3500` (`Deudora`) y `3200` (`Mixta`). En la salida,
+    `Asientos.esSaldoContrario()` detecta un saldo negativo en la convencion de
+    la naturaleza: el catalogo lo marca en la columna `Estado`, y las cuentas T
+    y el libro mayor agregan `(contrario)` y una advertencia. Las cuentas `Mixta`
+    nunca se marcan.
 
 18. La busqueda de cuentas vive en `Datos.buscarCuentas()` y `Datos.pedirCuenta()`.
     El codigo exacto se resuelve primero; una consulta de solo digitos busca por
     prefijo de codigo; el resto compara sin tildes ni mayusculas contra codigo,
     nombre, tipo y naturaleza. Con una coincidencia se selecciona sola, con 2 a
     12 se muestra una lista y con mas de 12 se pide un texto mas especifico.
+
+19. El Balance General no hace cierre contable. `Reportes.avisarDobleConteo()`
+    advierte si las cuentas nominales generan resultado y ademas `3110` o `3120`
+    tienen saldo, porque el patrimonio podria estar sumando dos veces el mismo
+    resultado. `3200 Resultados de ejercicios anteriores` forma parte del
+    patrimonio y no se suma al resultado del ejercicio.
 
 ### Cambio 35: Simplificacion segun la rubrica del curso
 
@@ -1196,4 +1206,57 @@ el codigo exacto o mostraba listas demasiado largas.
   `balance.txt` no cambiaron.
 - `README.md` y `AGENTS.md` documentan naturalezas, busqueda, formatos y pruebas.
 - No se modifico el formato de `asientos.txt` ni la logica de partida doble.
+
+### Cambio 37: Aviso de doble conteo y saldos contrarios visibles
+
+**Razon:** El Balance General sumaba el resultado de las cuentas nominales sin
+avisar si ese mismo resultado ya estaba registrado en `3110` o `3120`, lo que
+podia inflar el patrimonio. Ademas, el catalogo mostraba los saldos en la
+convencion del tipo, de modo que cuentas de valuacion como `1790` aparecian
+negativas sin explicacion, y no habia una marca uniforme para un saldo realmente
+contrario a la naturaleza.
+
+**Impacto:**
+- `src/Asientos.java`: nueva `esSaldoContrario(idxCuenta, saldoNaturaleza)`:
+  detecta un saldo negativo en la convencion de la naturaleza y exime a las
+  cuentas `Mixta`. Nueva `etiquetaSaldoCuenta()` para etiquetar tambien las
+  Mixta segun su tipo. `saldoNaturaleza()` y `efectoSaldoNaturaleza()` usan la
+  convencion del tipo para las cuentas Mixta, de modo que `3200` con saldo
+  acreedor se muestra positivo y como Acreedor.
+- `src/Reportes.java`: `mostrarCuentaT()` y `verLibroMayor()` agregan
+  `(contrario)` al saldo y una advertencia cuando el saldo se opone a la
+  naturaleza. `generarBalance()` agrega la nota de que `3200` no es el resultado
+  del ejercicio y llama a `avisarDobleConteo()`: si hay resultado en las cuentas
+  nominales y saldo en `3110` o `3120`, advierte del posible doble conteo. No se
+  cambia la formula ni se hace cierre automatico.
+- `src/Datos.java`: `mostrarCatalogo()` muestra el saldo en la convencion de la
+  naturaleza (positivo en el lado normal) y agrega la columna `Estado` con
+  `(contrario)`. `1790` y `1890` dejan de aparecer negativas.
+- `tests/pruebas_logica_contable.ps1`: pruebas del aviso con `3110` y con
+  `3120`, ausencia del aviso en el ciclo normal, catalogo de `1790`/`1890`/`3200`
+  sin falsas alarmas, y una prueba unitaria de `esSaldoContrario()` que cubre el
+  caso contrario y la exencion Mixta.
+- `README.md`: documenta la convencion del catalogo, las marcas `(contrario)` y
+  el aviso de doble conteo.
+- No se modifico el formato de `data/`, la partida doble ni las 11 opciones.
+
+### Cambio 38: Correccion del asiento de compra de carro y limpieza de clases
+
+**Razon:** El asiento demo `compra de carro` debitaba `1000 Caja` en lugar de
+`1420 Equipo de transporte`, por lo que Caja quedaba inflada en 50.000. Ademas,
+el workspace Java de VS Code conservaba clases compiladas de versiones
+anteriores que podian mezclarse con los fuentes actuales.
+
+**Impacto:**
+- `data/asientos.txt`: la partida al Debe del asiento `11/11/2026 compra de
+  carro` usa `1420`; el asiento sigue cuadrado por 50.000,00.
+- Respaldo previo de los tres archivos en
+  `backup/manual_20261111_213926_435/`.
+- `data/cuentas.txt` recalculado: Caja 11.500,00 y Equipo de transporte
+  50.000,00.
+- `data/balance.txt` regenerado: `11/11/2026|61500.00|50000.00|11500.00`.
+- `bin/` del proyecto y `bin/` del workspace Java de VS Code vaciados y
+  recompilados desde los cuatro modulos actuales.
+- `README.md`: el ejemplo de `cuentas.txt` refleja Caja en 11.500,00.
+- No se modifico codigo, el formato de los archivos ni la logica contable.
 

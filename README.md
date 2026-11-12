@@ -92,6 +92,12 @@ Si una partida dejaria una cuenta `Deudora` con saldo acreedor o una
 actual, el monto intentado y el saldo resultante, y vuelve a pedir la partida.
 Una cuenta `Mixta` no tiene esa restriccion.
 
+El catalogo (opcion `1.1`) muestra el saldo en la convencion de la naturaleza:
+positivo cuando esta en su lado normal y negativo cuando es contrario. Los
+saldos contrarios se marcan con `(contrario)` en la columna `Estado`; las
+cuentas `Mixta` nunca se marcan porque no tienen un lado natural. Las cuentas T
+y el libro mayor usan la misma marca y agregan una advertencia.
+
 ## Registrar una operacion (opcion 2)
 
 1. Fecha en formato `dd/MM/yyyy`, real y entre 1900 y 2100. Enter usa la fecha
@@ -128,19 +134,24 @@ consultar el libro mayor y en la opcion `1.3 Buscar cuenta`.
 
 - **Cuentas T (opcion 3):** permite buscar una cuenta y muestra su tipo,
   naturaleza, cargos y abonos en dos columnas, con totales y saldo
-  deudor/acreedor/cero.
+  deudor/acreedor/cero. Un saldo contrario a la naturaleza se marca
+  `(contrario)` y genera una advertencia.
 - **Libro diario (opcion 4):** muestra todos los asientos en orden de fecha con
   el formato clasico `Cta | Detalle | Parcial | Debe | Haber`, con totales por
   asiento y total general.
 - **Libro mayor (opcion 5):** permite buscar una cuenta y muestra su tipo,
-  naturaleza, movimientos y saldo acumulado.
+  naturaleza, movimientos y saldo acumulado, con la misma marca de saldo
+  contrario.
 - **Balanza de comprobacion (opcion 6):** muestra debitos, creditos, deudor y
   acreedor por cuenta, y verifica que la balanza cuadre.
 - **Estado de resultados (opcion 7):** calcula utilidad bruta (ingresos menos
   costos) y utilidad neta (utilidad bruta menos gastos).
 - **Balance general (opcion 8):** verifica
   `Activo = Pasivo + Patrimonio + Resultado` y guarda el resultado en
-  `data/balance.txt`.
+  `data/balance.txt`. `3200 Resultados de ejercicios anteriores` forma parte del
+  patrimonio y no se suma al resultado. Si hay resultado en las cuentas
+  nominales y ademas saldo en `3110` o `3120`, muestra una advertencia de
+  posible doble conteo; el programa no realiza cierre contable automatico.
 - **Consultar movimientos (opcion 9):** lista todos los asientos registrados.
 
 Todos los reportes usan el historico completo. No hay filtros por periodo ni
@@ -156,7 +167,7 @@ el proximo guardado sobrescribe los cambios externos.
 Cinco campos por linea: `codigo|nombre|tipo|naturaleza|saldo`.
 
 ```text
-1000|Caja|Activo|Deudora|61500.00
+1000|Caja|Activo|Deudora|11500.00
 1790|Depreciacion acumulada|Activo|Acreedora|0.00
 3200|Resultados de ejercicios anteriores|Patrimonio|Mixta|0.00
 ```
@@ -217,6 +228,6 @@ Las pruebas compilan en un directorio temporal y no modifican `data/` ni
 `backup/` reales. La primera suite cubre menu, catalogo, registro, validaciones,
 reportes, respaldo y archivos invalidos. La segunda cubre naturalezas, busqueda
 de cuentas, montos y fechas estrictos, partida doble, saldos contrarios,
-depreciacion y amortizacion, los seis reportes con valores exactos, migracion de
-archivos de cuatro a cinco campos, persistencia, datos invalidos y fin de
-entrada.
+depreciacion y amortizacion, los seis reportes con valores exactos, el aviso de
+doble conteo, la exencion de cuentas Mixtas, migracion de archivos de cuatro a
+cinco campos, persistencia, datos invalidos y fin de entrada.

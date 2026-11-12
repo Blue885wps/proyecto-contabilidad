@@ -230,13 +230,16 @@ public class Datos {
 
     static void mostrarCatalogo() {
         System.out.println("\n=== CATALOGO DE CUENTAS ===");
-        System.out.println("Codigo, nombre, tipo y naturaleza de cada cuenta. El saldo se muestra en la convencion de su tipo.");
-        System.out.printf("%-8s %-32s %-11s %-11s %12s%n", "Codigo", "Nombre", "Tipo", "Naturaleza", "Saldo");
-        System.out.println("-".repeat(80));
-        for (int i = 0; i < cuentaCodigos.size(); i++)
-            System.out.printf("%-8s %-32s %-11s %-11s %12.2f%n", cuentaCodigos.get(i), cuentaNombres.get(i),
-                    cuentaTipos.get(i), cuentaNaturalezas.get(i), cuentaSaldos.get(i));
-        System.out.println("Nota: las cuentas de naturaleza contraria a su tipo pueden mostrar saldo negativo.");
+        System.out.println("El saldo se muestra en la convencion de la naturaleza: positivo en su lado normal, negativo si es contrario.");
+        System.out.printf("%-8s %-32s %-11s %-11s %12s %-12s%n", "Codigo", "Nombre", "Tipo", "Naturaleza", "Saldo", "Estado");
+        System.out.println("-".repeat(92));
+        for (int i = 0; i < cuentaCodigos.size(); i++) {
+            double saldoNaturaleza = Asientos.saldoNaturaleza(i, cuentaSaldos.get(i));
+            boolean contrario = Asientos.esSaldoContrario(i, saldoNaturaleza);
+            System.out.printf("%-8s %-32s %-11s %-11s %12.2f %-12s%n", cuentaCodigos.get(i), cuentaNombres.get(i),
+                    cuentaTipos.get(i), cuentaNaturalezas.get(i), saldoNaturaleza, contrario ? "(contrario)" : "");
+        }
+        System.out.println("Nota: los saldos en el lado contrario a la naturaleza se marcan en la columna Estado.");
     }
 
     static void crearCuenta() {

@@ -86,6 +86,7 @@ try {
     $out = Invoke-Steps $dir @("1", "1", "0", "11")
     Assert-Contains $out "=== CATALOGO DE CUENTAS ===" "catalogo visible"
     Assert-Contains $out "Naturaleza" "columna naturaleza"
+    Assert-Contains $out "Estado" "columna estado"
     Assert-Match $out "1000\s+Caja\s+Activo\s+Deudora" "1000 Deudora"
     Assert-Match $out "1790\s+Depreciacion acumulada\s+Activo\s+Acreedora" "1790 Acreedora"
     Assert-Match $out "3120\s+Perdida del ejercicio\s+Patrimonio\s+Deudora" "3120 Deudora"
@@ -289,13 +290,15 @@ try {
         "2", "03/11/2026", "Credito 3200", "1000", "1", "1500", "3200", "2", "1500", "N", "S",
         "2", "04/11/2026", "Debito 3201", "3201", "1", "1000", "1000", "2", "1000", "N", "S",
         "2", "05/11/2026", "Credito 3201", "1000", "1", "1500", "3201", "2", "1500", "N", "S",
-        "3", "3200", "3", "3201",
+        "3", "3200", "3", "3201", "1", "1", "0",
         "11"
     )
     Assert-NotContains $out "PARTIDA RECHAZADA" "cuentas mixtas no se bloquean"
     Assert-Contains $out "SALDO: 500,00 (Acreedor)" "saldo de cuenta mixta"
     Assert-Match $out "3200 - Resultados de ejercicios anteriores" "cuenta 3200 mixta"
     Assert-Match $out "3201 - Resultados especiales" "cuenta 3201 mixta"
+    Assert-NotContains $out "(contrario)" "cuenta mixta sin falsa alarma"
+    Assert-Match $out "3200\s+Resultados de ejercicios anteriores\s+Patrimonio\s+Mixta\s+500,00" "catalogo 3200 en su naturaleza"
     $cuentas = Get-Content (Join-Path $dir "data\cuentas.txt") -Raw
     Assert-Match $cuentas "3201\|Resultados especiales\|Patrimonio\|Mixta\|500\.00" "mixta personalizada persistida"
 
@@ -309,12 +312,15 @@ try {
         "2", "03/11/2026", "Compra intangible", "1800", "1", "5000", "1000", "2", "5000", "N", "S",
         "2", "04/11/2026", "Depreciacion", "6080", "1", "1000", "1790", "2", "1000", "N", "S",
         "2", "05/11/2026", "Amortizacion", "6090", "1", "500", "1890", "2", "500", "N", "S",
-        "3", "1790", "3", "1890", "5", "1790", "4", "6", "7", "8",
+        "3", "1790", "3", "1890", "5", "1790", "4", "6", "7", "8", "1", "1", "0",
         "11"
     )
     Assert-Contains $out "SALDO: 1000,00 (Acreedor)" "depreciacion acumulada acreedora"
     Assert-Contains $out "SALDO: 500,00 (Acreedor)" "amortizacion acumulada acreedora"
     Assert-Contains $out "Saldo final: 1000,00 (Acreedor)" "libro mayor de depreciacion"
+    Assert-NotContains $out "(contrario)" "sin falsas alarmas de saldo contrario"
+    Assert-Match $out "1790\s+Depreciacion acumulada\s+Activo\s+Acreedora\s+1000,00" "catalogo 1790 en su naturaleza"
+    Assert-Match $out "1890\s+Amortizacion acumulada\s+Activo\s+Acreedora\s+500,00" "catalogo 1890 en su naturaleza"
     Assert-Match $out "TOTAL GENERAL\s+136500,00\s+136500,00" "totales del libro diario"
     Assert-Match $out "TOTALES:\s+136500,00\s+136500,00" "totales de la balanza"
     Assert-Match $out "Utilidad bruta:\s+0,00" "utilidad bruta sin ingresos"
@@ -348,6 +354,8 @@ try {
     )
     Assert-NotContains $out "PARTIDA RECHAZADA" "ciclo sin rechazos"
     Assert-NotContains $out "ADVERTENCIA" "ciclo sin advertencias"
+    Assert-NotContains $out "doble conteo" "ciclo sin doble conteo"
+    Assert-Contains $out "3200 Resultados de ejercicios anteriores forma parte del patrimonio" "nota de resultados anteriores"
     Assert-Match $out "TOTAL GENERAL\s+199000,00\s+199000,00" "libro diario del ciclo"
     Assert-Match $out "TOTALES:\s+199000,00\s+199000,00" "balanza del ciclo"
     Assert-Match $out "Utilidad bruta:\s+23000,00" "utilidad bruta del ciclo"
@@ -364,6 +372,31 @@ try {
     Assert-Contains $out "Saldo final: 108000,00 (Deudor)" "caja final del ciclo"
     $balance = Get-Content (Join-Path $dir "data\balance.txt") -Raw
     Assert-Match $balance "^\d{2}/\d{2}/\d{4}\|131000\.00\|10000\.00\|121000\.00" "balance.txt del ciclo"
+
+    # ------------------------------------------------------------------
+    # Aviso de doble conteo: resultado nominal y saldo en 3110 o 3120
+    # ------------------------------------------------------------------
+    $dir = New-TestDir "doble_conteo_3110"
+    $out = Invoke-Steps $dir @(
+        "2", "01/11/2026", "Aporte", "1000", "1", "100000", "3000", "2", "100000", "N", "S",
+        "2", "02/11/2026", "Venta", "1210", "1", "35000", "4010", "2", "35000", "N", "S",
+        "2", "03/11/2026", "Utilidad al patrimonio", "1000", "1", "35000", "3110", "2", "35000", "N", "S",
+        "8", "11"
+    )
+    Assert-Contains $out "ADVERTENCIA: posible doble conteo del resultado del ejercicio." "aviso de doble conteo con 3110"
+    Assert-Contains $out "Saldo de 3110: 35000,00" "saldo de 3110 informado"
+    Assert-Contains $out "EL BALANCE CUADRA CORRECTAMENTE." "balance con 3110 cuadra"
+
+    $dir = New-TestDir "doble_conteo_3120"
+    $out = Invoke-Steps $dir @(
+        "2", "01/11/2026", "Aporte", "1000", "1", "100000", "3000", "2", "100000", "N", "S",
+        "2", "02/11/2026", "Gasto", "6060", "1", "5000", "1000", "2", "5000", "N", "S",
+        "2", "03/11/2026", "Perdida al patrimonio", "3120", "1", "5000", "1000", "2", "5000", "N", "S",
+        "8", "11"
+    )
+    Assert-Contains $out "ADVERTENCIA: posible doble conteo del resultado del ejercicio." "aviso de doble conteo con 3120"
+    Assert-Contains $out "Saldo de 3120: -5000,00" "saldo de 3120 informado"
+    Assert-Contains $out "EL BALANCE CUADRA CORRECTAMENTE." "balance con 3120 cuadra"
 
     # ------------------------------------------------------------------
     # Reportes con datos vacios
@@ -520,6 +553,32 @@ try {
         if (-not (Test-Path (Join-Path $carpeta.FullName $archivo))) { throw "FALLO: el respaldo no contiene $archivo" }
     }
     Write-Host "OK: respaldo manual completo"
+
+    # ------------------------------------------------------------------
+    # Helper defensivo: saldo contrario y exencion de cuentas Mixtas
+    # ------------------------------------------------------------------
+    $helper = Join-Path $temp "PruebaSaldoContrario.java"
+    $helperLines = @(
+        "public class PruebaSaldoContrario {",
+        "    public static void main(String[] args) {",
+        "        Datos.cuentaTipos.add(""Activo"");",
+        "        Datos.cuentaNaturalezas.add(""Deudora"");",
+        "        boolean contraria = Asientos.esSaldoContrario(0, -100);",
+        "        boolean normal = !Asientos.esSaldoContrario(0, 100);",
+        "        boolean cero = !Asientos.esSaldoContrario(0, 0);",
+        "        Datos.cuentaNaturalezas.set(0, ""Mixta"");",
+        "        boolean mixta = !Asientos.esSaldoContrario(0, -100);",
+        "        if (!contraria || !normal || !cero || !mixta) throw new RuntimeException(""fallo"");",
+        "        System.out.println(""OK: esSaldoContrario"");",
+        "    }",
+        "}"
+    )
+    Write-Utf8 $helper ($helperLines -join "`r`n")
+    & javac -cp (Join-Path $temp "bin") -d (Join-Path $temp "bin") $helper
+    if ($LASTEXITCODE -ne 0) { throw "No se pudo compilar PruebaSaldoContrario" }
+    $out = & java -cp (Join-Path $temp "bin") PruebaSaldoContrario
+    if ($LASTEXITCODE -ne 0 -or ($out -notcontains "OK: esSaldoContrario")) { throw "FALLO: esSaldoContrario" }
+    Write-Host "OK: helper de saldo contrario"
 
     Write-Host ""
     Write-Host "TODAS LAS PRUEBAS DE LOGICA CONTABLE PASARON."
