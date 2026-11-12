@@ -48,13 +48,15 @@ public class Contabilidad {
     static void menuAdministrarCuentas() {
         while (true) {
             linea("\n--- ADMINISTRAR CUENTAS ---",
-                    "1. Ver catalogo",
-                    "2. Crear cuenta",
-                    "0. Volver");
-            int opcion = leerInt("Seleccione una opcion (0-2): ", 0, 2);
+                    "1. Ver catalogo completo",
+                    "2. Crear una cuenta",
+                    "3. Buscar una cuenta",
+                    "0. Volver al menu principal");
+            int opcion = leerInt("Seleccione una opcion (0-3): ", 0, 3);
             if (entradaCerrada || opcion == 0) return;
             if (opcion == 1) Datos.mostrarCatalogo();
-            else Datos.crearCuenta();
+            else if (opcion == 2) Datos.crearCuenta();
+            else Datos.buscarCuenta();
         }
     }
 
@@ -73,12 +75,12 @@ public class Contabilidad {
             System.out.print(mensaje);
             if (!scanner.hasNextLine()) {
                 entradaCerrada = true;
-                System.out.println("No hay mas entrada.");
+                System.out.println("No hay mas entrada. El programa se cerrara.");
                 return null;
             }
             String entrada = scanner.nextLine().trim();
             if (!entrada.isEmpty()) return entrada;
-            System.out.println("No puede estar vacio.");
+            System.out.println("Este dato es obligatorio. Escriba un valor.");
         }
     }
 
@@ -89,9 +91,9 @@ public class Contabilidad {
             try {
                 int valor = Integer.parseInt(texto);
                 if (valor >= minimo && valor <= maximo) return valor;
-                System.out.println("Entre " + minimo + " y " + maximo + ".");
+                System.out.println("Numero fuera de rango. Escriba un numero entre " + minimo + " y " + maximo + ".");
             } catch (NumberFormatException e) {
-                System.out.println("Entero invalido.");
+                System.out.println("Entrada invalida. Escriba un numero entero entre " + minimo + " y " + maximo + ".");
             }
         }
     }
@@ -100,36 +102,28 @@ public class Contabilidad {
         while (true) {
             String texto = leerEntrada(mensaje);
             if (texto == null) return 0.0;
-            String limpio = texto.replace(',', '.');
-            if (limpio.matches("\\d+[.,]\\d{3}")) {
-                System.out.println("Monto ambiguo. Use 1800 o 1800,00 para evitar confusiones.");
-                continue;
-            }
-            try {
-                double valor = Double.parseDouble(limpio);
-                if (Double.isFinite(valor) && valor > 0) return valor;
-            } catch (NumberFormatException e) {
-                // se informa abajo
-            }
-            System.out.println("Monto invalido. Use un numero mayor que cero (coma o punto decimal).");
+            Double valor = Datos.parsearMonto(texto);
+            if (valor != null) return valor;
+            System.out.println("Monto invalido. Escriba un numero mayor o igual a 0.01 y con hasta 2 decimales.");
+            System.out.println("Ejemplos validos: 1800, 1800.50, 1800,50, 1.800,50.");
+            System.out.println("No use 1.800 (ambiguo), 0.001, 1e3 ni numeros negativos.");
         }
     }
 
     static String leerFecha(String mensaje) {
         String hoy = Datos.fechaActual();
         while (true) {
-            System.out.print(mensaje + " (dd/MM/yyyy, Enter = hoy " + hoy + "): ");
+            System.out.print(mensaje + " (dd/MM/yyyy, entre 1900 y 2100; Enter = hoy " + hoy + "): ");
             if (!scanner.hasNextLine()) {
                 entradaCerrada = true;
-                System.out.println("No hay mas entrada.");
+                System.out.println("No hay mas entrada. El programa se cerrara.");
                 return null;
             }
             String entrada = scanner.nextLine().trim();
             if (entrada.isEmpty()) return hoy;
             LocalDate fecha = Datos.parsearFecha(entrada);
-            if (fecha != null && fecha.getYear() >= 1900 && fecha.getYear() <= 2100)
-                return fecha.format(Datos.FORMATO_FECHA);
-            System.out.println("Fecha invalida. Use dd/MM/yyyy entre 1900 y 2100.");
+            if (fecha != null) return fecha.format(Datos.FORMATO_FECHA);
+            System.out.println("Fecha invalida. Escriba una fecha real con formato dd/MM/yyyy entre 1900 y 2100.");
         }
     }
 
@@ -138,7 +132,7 @@ public class Contabilidad {
             String texto = leerEntrada(mensaje);
             if (texto == null) return null;
             if (!texto.contains("|")) return texto;
-            System.out.println("El campo " + campo + " no puede contener el caracter |.");
+            System.out.println("El campo " + campo + " no puede contener el caracter |. Escriba el valor de nuevo.");
         }
     }
 
@@ -148,7 +142,7 @@ public class Contabilidad {
             if (respuesta == null) return false;
             if (respuesta.equalsIgnoreCase("S") || respuesta.equalsIgnoreCase("SI")) return true;
             if (respuesta.equalsIgnoreCase("N") || respuesta.equalsIgnoreCase("NO")) return false;
-            System.out.println("Responda S o N.");
+            System.out.println("Respuesta invalida. Escriba S para si o N para no.");
         }
     }
 }

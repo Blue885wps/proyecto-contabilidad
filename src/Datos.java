@@ -1,5 +1,6 @@
 import java.io.*;
 import java.nio.file.*;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -9,19 +10,22 @@ import java.util.*;
 
 public class Datos {
     static final double TOLERANCIA = 0.005, EPSILON = 1e-9;
+    static final int ANIO_MIN = 1900, ANIO_MAX = 2100;
     static final String ARCHIVO_CUENTAS = "data/cuentas.txt", ARCHIVO_ASIENTOS = "data/asientos.txt", ARCHIVO_BALANCE = "data/balance.txt";
     static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     static final DateTimeFormatter FORMATO_FECHA_ESTRICTA = DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT);
     static final DateTimeFormatter FORMATO_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS");
     static final String[] TIPOS_CUENTA = {"Activo", "Pasivo", "Patrimonio", "Ingreso", "Costo", "Gasto"};
+    static final String[] NATURALEZAS = {"Deudora", "Acreedora", "Mixta"};
 
     static boolean datosInvalidos = false;
-    static List<String> cuentaCodigos = new ArrayList<>(), cuentaNombres = new ArrayList<>(), cuentaTipos = new ArrayList<>();
+    static List<String> cuentaCodigos = new ArrayList<>(), cuentaNombres = new ArrayList<>(), cuentaTipos = new ArrayList<>(), cuentaNaturalezas = new ArrayList<>();
     static List<Double> cuentaSaldos = new ArrayList<>();
     static List<String> asientoFechas = new ArrayList<>(), asientoDescripciones = new ArrayList<>();
     static List<Double> asientoTotales = new ArrayList<>();
     static List<List<String>> partidaCodigos = new ArrayList<>(), partidaTipos = new ArrayList<>();
     static List<List<Double>> partidaMontos = new ArrayList<>();
+    static double[] saldosCarga = new double[0];
 
     // Catalogo estandar de 75 cuentas: codigo|nombre|tipo, separadas por ;
     static final String[] CATALOGO_ESTANDAR = {
@@ -33,13 +37,17 @@ public class Datos {
         "6000|Gastos|Gasto;6010|Gastos de venta|Gasto;6020|Gastos de administracion|Gasto;6030|Gastos financieros|Gasto;6040|Gastos de operacion|Gasto;6050|Sueldos y salarios|Gasto;6060|Renta|Gasto;6070|Servicios publicos|Gasto;6080|Depreciacion|Gasto;6090|Amortizacion|Gasto;6100|Gastos de publicidad y mercadeo|Gasto;6110|Gastos de mantenimiento|Gasto;6120|Gastos de seguros|Gasto;6130|Gastos de impuestos|Gasto;6140|Gastos de capacitacion|Gasto;6150|Gastos de viajes y representacion|Gasto"
     };
 
-    // FECHAS Y FORMATO
+    // FECHAS, MONTOS Y TEXTO
     static String fechaActual() { return LocalDate.now().format(FORMATO_FECHA); }
 
     static LocalDate parsearFecha(String texto) {
         if (texto == null) return null;
-        try { return LocalDate.parse(texto.trim(), FORMATO_FECHA_ESTRICTA); }
-        catch (DateTimeParseException e) { return null; }
+        String limpio = texto.trim();
+        if (!limpio.matches("\\d{2}/\\d{2}/\\d{4}")) return null;
+        try {
+            LocalDate fecha = LocalDate.parse(limpio, FORMATO_FECHA_ESTRICTA);
+            return fecha.getYear() < ANIO_MIN || fecha.getYear() > ANIO_MAX ? null : fecha;
+        } catch (DateTimeParseException e) { return null; }
     }
 
     static String fechaOrdenable(String fecha) {
@@ -47,9 +55,51 @@ public class Datos {
         return p.length == 3 ? p[2] + p[1] + p[0] : "99999999";
     }
 
+    static Double parsearMonto(String texto) {
+        if (texto == null) return null;
+        String s = texto.trim();
+        if (s.isEmpty()) return null;
+        if (s.matches("\\d+[.,]\\d{3}")) return null;
+        boolean valido = s.matches("\\d+")
+                || s.matches("\\d+[.,]\\d{1,2}")
+                || s.matches("[1-9]\\d{0,2}(?:\\.\\d{3})+(?:,\\d{1,2})?")
+                || s.matches("[1-9]\\d{0,2}(?:,\\d{3})+(?:\\.\\d{1,2})?");
+        if (!valido) return null;
+        String normalizado = s;
+        if (s.indexOf('.') >= 0 && s.indexOf(',') >= 0) {
+            if (s.lastIndexOf('.') > s.lastIndexOf(',')) normalizado = s.replace(",", "");
+            else normalizado = s.replace(".", "").replace(',', '.');
+        } else if (s.indexOf('.') >= 0) {
+            if (contarCaracter(s, '.') > 1) normalizado = s.replace(".", "");
+        } else if (s.indexOf(',') >= 0) {
+            if (contarCaracter(s, ',') > 1) normalizado = s.replace(",", "");
+            else normalizado = s.replace(',', '.');
+        }
+        try {
+            double valor = Double.parseDouble(normalizado);
+            if (!Double.isFinite(valor) || valor < 0.01) return null;
+            return valor;
+        } catch (NumberFormatException e) { return null; }
+    }
+
+    static int contarCaracter(String texto, char caracter) {
+        int total = 0;
+        for (int i = 0; i < texto.length(); i++) if (texto.charAt(i) == caracter) total++;
+        return total;
+    }
+
     static String formatearMonto(double valor) {
         if (Math.abs(valor) < TOLERANCIA) valor = 0;
         return String.format(Locale.ROOT, "%.2f", valor);
+    }
+
+    static String normalizarTexto(String texto) {
+        if (texto == null) return "";
+        return Normalizer.normalize(texto, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT)
+                .trim()
+                .replaceAll("\\s+", " ");
     }
 
     static String limpiarCampo(String valor) { return valor == null ? "" : valor.replace("\r", " ").replace("\n", " "); }
@@ -58,18 +108,37 @@ public class Datos {
 
     // CUENTAS
     static void inicializarCuentas() {
-        cuentaCodigos.clear(); cuentaNombres.clear(); cuentaTipos.clear(); cuentaSaldos.clear();
+        cuentaCodigos.clear(); cuentaNombres.clear(); cuentaTipos.clear(); cuentaNaturalezas.clear(); cuentaSaldos.clear();
         for (String grupo : CATALOGO_ESTANDAR) for (String linea : grupo.split(";")) {
             String[] p = linea.split("\\|");
-            agregarCuenta(p[0], p[1], p[2]);
+            agregarCuenta(p[0], p[1], p[2], naturalezaEstandar(p[0], p[2]));
         }
     }
 
-    static void agregarCuenta(String codigo, String nombre, String tipo) {
-        cuentaCodigos.add(codigo); cuentaNombres.add(nombre); cuentaTipos.add(tipo); cuentaSaldos.add(0.0);
+    static void agregarCuenta(String codigo, String nombre, String tipo, String naturaleza) {
+        cuentaCodigos.add(codigo); cuentaNombres.add(nombre); cuentaTipos.add(tipo);
+        cuentaNaturalezas.add(naturaleza); cuentaSaldos.add(0.0);
     }
 
     static boolean tipoValido(String tipo) { return Arrays.asList(TIPOS_CUENTA).contains(tipo); }
+
+    static String normalizarNaturaleza(String valor) {
+        if (valor == null) return null;
+        for (String naturaleza : NATURALEZAS)
+            if (naturaleza.equalsIgnoreCase(valor.trim())) return naturaleza;
+        return null;
+    }
+
+    static String naturalezaSugerida(String tipo) {
+        return Asientos.tipoDeudor(tipo) ? "Deudora" : "Acreedora";
+    }
+
+    static String naturalezaEstandar(String codigo, String tipo) {
+        if (codigo.equals("1790") || codigo.equals("1890")) return "Acreedora";
+        if (codigo.equals("3120") || codigo.equals("3500")) return "Deudora";
+        if (codigo.equals("3200")) return "Mixta";
+        return naturalezaSugerida(tipo);
+    }
 
     static int indiceCuenta(String codigo) {
         for (int i = 0; i < cuentaCodigos.size(); i++) if (cuentaCodigos.get(i).equals(codigo)) return i;
@@ -81,57 +150,143 @@ public class Datos {
         return i < 0 ? "(no existe)" : cuentaNombres.get(i);
     }
 
+    static List<Integer> buscarCuentas(String texto) {
+        String[] terminos = normalizarTexto(texto).split("\\s+");
+        boolean soloDigitos = terminos.length == 1 && terminos[0].matches("\\d+");
+        List<Integer> encontradas = new ArrayList<>();
+        for (int i = 0; i < cuentaCodigos.size(); i++) {
+            boolean coincide;
+            if (soloDigitos) {
+                coincide = normalizarTexto(cuentaCodigos.get(i)).startsWith(terminos[0]);
+            } else {
+                String campo = normalizarTexto(cuentaCodigos.get(i) + " " + cuentaNombres.get(i)
+                        + " " + cuentaTipos.get(i) + " " + cuentaNaturalezas.get(i));
+                coincide = true;
+                for (String termino : terminos) if (!campo.contains(termino)) { coincide = false; break; }
+            }
+            if (coincide) encontradas.add(i);
+        }
+        return encontradas;
+    }
+
+    static void mostrarCuentaEncontrada(int i) {
+        System.out.println("Seleccionada: " + cuentaCodigos.get(i) + " - " + cuentaNombres.get(i)
+                + " (" + cuentaTipos.get(i) + ", " + cuentaNaturalezas.get(i) + ").");
+    }
+
     static String pedirCuenta(String contexto) {
         while (true) {
-            String codigo = Contabilidad.leerEntrada(contexto + " (codigo, 0 = cancelar): ");
-            if (codigo == null || codigo.equals("0")) return null;
-            int i = indiceCuenta(codigo);
-            if (i >= 0) {
-                System.out.println("  " + codigo + " - " + cuentaNombres.get(i) + " (" + cuentaTipos.get(i) + ")");
-                return codigo;
+            String entrada = Contabilidad.leerEntrada(contexto + " (codigo exacto o texto a buscar; ? = catalogo, 0 = cancelar): ");
+            if (entrada == null || entrada.equals("0")) return null;
+            if (entrada.equals("?")) { mostrarCatalogo(); continue; }
+            int exacto = indiceCuenta(entrada);
+            if (exacto >= 0) { mostrarCuentaEncontrada(exacto); return cuentaCodigos.get(exacto); }
+            List<Integer> encontradas = buscarCuentas(entrada);
+            if (encontradas.isEmpty()) {
+                System.out.println("La cuenta no existe. El texto no coincide con ninguna cuenta.");
+                System.out.println("Escriba otro codigo o palabra, ? para ver el catalogo o 0 para cancelar.");
+                continue;
             }
-            System.out.println("La cuenta no existe. Consulte el catalogo en la opcion 1.1.");
+            if (encontradas.size() == 1) {
+                int i = encontradas.get(0);
+                mostrarCuentaEncontrada(i);
+                return cuentaCodigos.get(i);
+            }
+            if (encontradas.size() > 12) {
+                System.out.println("Hay " + encontradas.size() + " coincidencias. Escriba mas caracteres para reducir la lista.");
+                continue;
+            }
+            System.out.println("Coincidencias encontradas:");
+            for (int k = 0; k < encontradas.size(); k++) {
+                int i = encontradas.get(k);
+                System.out.printf("  %d. %s - %s (%s, %s)%n", k + 1, cuentaCodigos.get(i),
+                        cuentaNombres.get(i), cuentaTipos.get(i), cuentaNaturalezas.get(i));
+            }
+            while (true) {
+                String seleccion = Contabilidad.leerEntrada("Elija una cuenta por numero (1-" + encontradas.size()
+                        + "), V para buscar de nuevo, ? para el catalogo, 0 para cancelar: ");
+                if (seleccion == null || seleccion.equals("0")) return null;
+                if (seleccion.equalsIgnoreCase("V")) break;
+                if (seleccion.equals("?")) { mostrarCatalogo(); continue; }
+                try {
+                    int opcion = Integer.parseInt(seleccion);
+                    if (opcion >= 1 && opcion <= encontradas.size()) {
+                        int i = encontradas.get(opcion - 1);
+                        mostrarCuentaEncontrada(i);
+                        return cuentaCodigos.get(i);
+                    }
+                } catch (NumberFormatException e) { }
+                System.out.println("Opcion invalida. Escriba el numero de la lista, V, ? o 0.");
+            }
         }
+    }
+
+    static void buscarCuenta() {
+        System.out.println("\n--- BUSCAR CUENTA ---");
+        System.out.println("Escriba el codigo exacto o parte del nombre, tipo o naturaleza.");
+        System.out.println("Ejemplos: 1000, caja, inventarios, activo acreedora.");
+        pedirCuenta("Cuenta a buscar");
     }
 
     static void mostrarCatalogo() {
         System.out.println("\n=== CATALOGO DE CUENTAS ===");
-        System.out.printf("%-8s %-35s %-12s %12s%n", "Codigo", "Nombre", "Tipo", "Saldo");
-        System.out.println("-".repeat(70));
+        System.out.println("Codigo, nombre, tipo y naturaleza de cada cuenta. El saldo se muestra en la convencion de su tipo.");
+        System.out.printf("%-8s %-32s %-11s %-11s %12s%n", "Codigo", "Nombre", "Tipo", "Naturaleza", "Saldo");
+        System.out.println("-".repeat(80));
         for (int i = 0; i < cuentaCodigos.size(); i++)
-            System.out.printf("%-8s %-35s %-12s %12.2f%n", cuentaCodigos.get(i), cuentaNombres.get(i), cuentaTipos.get(i), cuentaSaldos.get(i));
+            System.out.printf("%-8s %-32s %-11s %-11s %12.2f%n", cuentaCodigos.get(i), cuentaNombres.get(i),
+                    cuentaTipos.get(i), cuentaNaturalezas.get(i), cuentaSaldos.get(i));
+        System.out.println("Nota: las cuentas de naturaleza contraria a su tipo pueden mostrar saldo negativo.");
     }
 
     static void crearCuenta() {
         if (datosInvalidos) { System.out.println("No se pueden crear cuentas: hay datos invalidos en los archivos."); return; }
         System.out.println("\n--- NUEVA CUENTA ---");
-        String nombre = Contabilidad.leerTextoPersistible("Nombre de la cuenta: ", "nombre");
+        System.out.println("Se pediran 4 datos: nombre, tipo, naturaleza y codigo.");
+        System.out.println("Paso 1 de 4: nombre de la cuenta.");
+        String nombre = Contabilidad.leerTextoPersistible("Nombre (ej: Caja chica): ", "nombre");
         if (Contabilidad.entradaCerrada || nombre == null) return;
+        System.out.println("Paso 2 de 4: tipo de cuenta.");
         String tipo = pedirTipoCuenta();
         if (Contabilidad.entradaCerrada) return;
+        System.out.println("Paso 3 de 4: naturaleza de la cuenta.");
+        String naturaleza = pedirNaturalezaCuenta(tipo);
+        if (Contabilidad.entradaCerrada) return;
+        System.out.println("Paso 4 de 4: codigo unico de la cuenta.");
         String codigo;
         while (true) {
-            codigo = Contabilidad.leerEntrada("Codigo de la cuenta (ej: 1010): ");
+            codigo = Contabilidad.leerEntrada("Codigo (ej: 1010): ");
             if (codigo == null) return;
             if (codigo.equals("0") || codigo.equals("?") || codigo.contains("|")) {
-                System.out.println("Codigo invalido. No use 0, ? ni el caracter |."); continue;
+                System.out.println("Codigo invalido. No use 0, ? ni el caracter |. Escriba otro codigo."); continue;
             }
-            if (indiceCuenta(codigo) >= 0) { System.out.println("El codigo ya existe. Ingrese otro."); continue; }
+            if (indiceCuenta(codigo) >= 0) { System.out.println("El codigo ya existe. Escriba otro codigo."); continue; }
             break;
         }
-        agregarCuenta(codigo, nombre, tipo);
+        agregarCuenta(codigo, nombre, tipo, naturaleza);
         if (!guardarCuentas()) {
             int u = cuentaCodigos.size() - 1;
-            cuentaCodigos.remove(u); cuentaNombres.remove(u); cuentaTipos.remove(u); cuentaSaldos.remove(u);
+            cuentaCodigos.remove(u); cuentaNombres.remove(u); cuentaTipos.remove(u);
+            cuentaNaturalezas.remove(u); cuentaSaldos.remove(u);
             System.out.println("No se pudo guardar la cuenta."); return;
         }
-        System.out.println("Cuenta creada: " + codigo + " - " + nombre + " (" + tipo + ").");
+        System.out.println("Cuenta creada: " + codigo + " - " + nombre + " (" + tipo + ", " + naturaleza + ").");
     }
 
     static String pedirTipoCuenta() {
-        System.out.println("Tipo de cuenta:");
+        System.out.println("Tipos disponibles:");
         for (int i = 0; i < TIPOS_CUENTA.length; i++) System.out.println("  " + (i + 1) + ". " + TIPOS_CUENTA[i]);
-        return TIPOS_CUENTA[Contabilidad.leerInt("Seleccione (1-6): ", 1, 6) - 1];
+        return TIPOS_CUENTA[Contabilidad.leerInt("Seleccione el tipo (1-6): ", 1, 6) - 1];
+    }
+
+    static String pedirNaturalezaCuenta(String tipo) {
+        System.out.println("Naturalezas disponibles:");
+        System.out.println("  1. Deudora   -> aumenta con el Debe y no puede quedar con saldo Acreedor.");
+        System.out.println("  2. Acreedora -> aumenta con el Haber y no puede quedar con saldo Deudor.");
+        System.out.println("  3. Mixta     -> permite saldo Deudor o Acreedor.");
+        System.out.println("Sugerida para el tipo " + tipo + ": " + naturalezaSugerida(tipo) + ".");
+        int opcion = Contabilidad.leerInt("Seleccione la naturaleza (1-3): ", 1, 3);
+        return NATURALEZAS[opcion - 1];
     }
 
     // PERSISTENCIA
@@ -152,7 +307,7 @@ public class Datos {
     }
 
     static boolean cargarCuentasTexto() {
-        cuentaCodigos.clear(); cuentaNombres.clear(); cuentaTipos.clear(); cuentaSaldos.clear();
+        cuentaCodigos.clear(); cuentaNombres.clear(); cuentaTipos.clear(); cuentaNaturalezas.clear(); cuentaSaldos.clear();
         File archivo = new File(ARCHIVO_CUENTAS);
         if (!archivo.exists()) return false;
         try (BufferedReader reader = new BufferedReader(new FileReader(archivo))) {
@@ -162,17 +317,27 @@ public class Datos {
                 if (linea.startsWith("\uFEFF")) linea = linea.substring(1);
                 if (linea.trim().isEmpty()) continue;
                 String[] p = linea.split("\\|", -1);
-                if (p.length != 4) { advertirCuenta(numero, "se esperaban 4 campos"); continue; }
+                if (p.length != 4 && p.length != 5) { advertirCuenta(numero, "se esperaban 4 o 5 campos"); continue; }
                 String codigo = p[0].trim(), nombre = p[1].trim(), tipo = p[2].trim();
                 if (codigo.isEmpty() || nombre.isEmpty()) { advertirCuenta(numero, "codigo o nombre vacio"); continue; }
                 if (!tipoValido(tipo)) { advertirCuenta(numero, "tipo de cuenta invalido"); continue; }
+                String naturaleza;
+                String saldoTexto;
+                if (p.length == 5) {
+                    naturaleza = normalizarNaturaleza(p[3].trim());
+                    saldoTexto = p[4].trim();
+                } else {
+                    naturaleza = naturalezaEstandar(codigo, tipo);
+                    saldoTexto = p[3].trim();
+                }
+                if (naturaleza == null) { advertirCuenta(numero, "naturaleza invalida (use Deudora, Acreedora o Mixta)"); continue; }
                 double saldo;
                 try {
-                    saldo = Double.parseDouble(p[3].trim());
+                    saldo = Double.parseDouble(saldoTexto);
                     if (!Double.isFinite(saldo)) throw new NumberFormatException();
                 } catch (NumberFormatException e) { advertirCuenta(numero, "saldo invalido"); continue; }
                 if (indiceCuenta(codigo) >= 0) { advertirCuenta(numero, "codigo duplicado " + codigo); continue; }
-                agregarCuenta(codigo, nombre, tipo);
+                agregarCuenta(codigo, nombre, tipo, naturaleza);
                 cuentaSaldos.set(cuentaSaldos.size() - 1, saldo);
             }
         } catch (IOException e) {
@@ -190,6 +355,7 @@ public class Datos {
     static void cargarAsientosTexto() {
         asientoFechas.clear(); asientoDescripciones.clear(); asientoTotales.clear();
         partidaCodigos.clear(); partidaTipos.clear(); partidaMontos.clear();
+        saldosCarga = new double[cuentaCodigos.size()];
         File archivo = new File(ARCHIVO_ASIENTOS);
         if (!archivo.exists()) return;
         List<String> bloque = new ArrayList<>();
@@ -239,11 +405,8 @@ public class Datos {
             else if (tipo.equalsIgnoreCase("Credito")) tipo = "Credito";
             else { error = "tipo de partida invalido"; break; }
             if (indiceCuenta(codigo) < 0) { error = "la cuenta " + codigo + " no existe"; break; }
-            double monto;
-            try {
-                monto = Double.parseDouble(p[3].trim());
-                if (!Double.isFinite(monto) || monto <= 0) throw new NumberFormatException();
-            } catch (NumberFormatException e) { error = "monto invalido"; break; }
+            Double monto = parsearMonto(p[3].trim());
+            if (monto == null) { error = "monto invalido (use hasta 2 decimales y minimo 0.01)"; break; }
             codigos.add(codigo); tipos.add(tipo); montos.add(monto);
         }
         if (error == null && codigos.size() < 2) error = "minimo 2 partidas";
@@ -252,9 +415,28 @@ public class Datos {
             if (debe <= 0 || haber <= 0) error = "debe haber partidas al Debe y al Haber";
             else if (!Asientos.cuadra(debe, haber)) error = "no cuadra: Debe " + formatearMonto(debe) + ", Haber " + formatearMonto(haber);
         }
+        if (error == null) {
+            for (int i = 0; i < codigos.size(); i++) {
+                int idx = indiceCuenta(codigos.get(i));
+                String naturaleza = cuentaNaturalezas.get(idx);
+                double efecto = Asientos.efectoSaldoNaturaleza(idx, tipos.get(i), montos.get(i));
+                double resultante = saldosCarga[idx] + efecto;
+                if (!naturaleza.equals("Mixta") && resultante < -TOLERANCIA) {
+                    error = "saldo contrario en " + codigos.get(i) + " " + cuentaNombres.get(idx)
+                            + ": saldo actual " + String.format("%.2f", saldosCarga[idx])
+                            + ", monto " + String.format("%.2f", montos.get(i))
+                            + ", resultante " + String.format("%.2f", resultante);
+                    break;
+                }
+            }
+        }
         if (error != null) {
             System.out.println("ADVERTENCIA " + ARCHIVO_ASIENTOS + " linea " + numero + ": " + error + ". Asiento omitido.");
             datosInvalidos = true; return;
+        }
+        for (int i = 0; i < codigos.size(); i++) {
+            int idx = indiceCuenta(codigos.get(i));
+            saldosCarga[idx] += Asientos.efectoSaldoNaturaleza(idx, tipos.get(i), montos.get(i));
         }
         Asientos.agregarAsiento(fechaValida.format(FORMATO_FECHA), descripcion, codigos, tipos, montos, Asientos.totalLado(tipos, montos, "Debito"));
     }
@@ -268,7 +450,8 @@ public class Datos {
         StringBuilder contenido = new StringBuilder();
         for (int i = 0; i < cuentaCodigos.size(); i++)
             contenido.append(limpiarCampo(cuentaCodigos.get(i))).append('|').append(limpiarCampo(cuentaNombres.get(i))).append('|')
-                    .append(limpiarCampo(cuentaTipos.get(i))).append('|').append(formatearMonto(cuentaSaldos.get(i))).append(System.lineSeparator());
+                    .append(limpiarCampo(cuentaTipos.get(i))).append('|').append(limpiarCampo(cuentaNaturalezas.get(i))).append('|')
+                    .append(formatearMonto(cuentaSaldos.get(i))).append(System.lineSeparator());
         return escribirArchivoAtomico(ARCHIVO_CUENTAS, contenido.toString());
     }
 

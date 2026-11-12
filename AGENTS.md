@@ -24,8 +24,9 @@ proyecto contabilidad/
 ├── bin/
 │   └── *.class              # Clases compiladas de los cuatro modulos
 ├── tests/
-│   └── pruebas_fase_d.ps1   # Pruebas de regresion en directorio temporal
-└── AGENTS.md                # Este archivo
+│   ├── pruebas_fase_d.ps1          # Pruebas de regresion en directorio temporal
+│   └── pruebas_logica_contable.ps1 # Pruebas integrales de logica contable
+└── AGENTS.md                       # Este archivo
 ```
 
 > Desde el Cambio 35 la aplicacion se organiza en cuatro modulos `static`. El
@@ -987,8 +988,10 @@ antes de recompilar para no dejar clases de versiones anteriores.
 1. Si se agrega un nuevo tipo de cuenta, actualizar:
    - El arreglo `TIPOS_CUENTA` en `Datos.java` (fuente unica para `tipoValido()`
      y `pedirTipoCuenta()`)
-   - La logica de `efectoSaldo()` y `tipoDeudor()` en `Asientos.java` para
-     definir el efecto del debito/credito y el saldo normal
+   - `naturalezaSugerida()` en `Datos.java` para definir la naturaleza inicial
+   - La logica de `efectoSaldoNaturaleza()`, `tipoDeudor()` y
+     `saldoNaturaleza()` en `Asientos.java` para definir el efecto del
+     debito/credito y el saldo normal
    - La logica de balance y estado de resultados en `Reportes.java`
 
 2. Las listas paralelas deben mantenerse sincronizadas: el indice `i` representa
@@ -1004,9 +1007,11 @@ antes de recompilar para no dejar clases de versiones anteriores.
 
 6. Los saldos son derivados: se recalculan desde `asientos.txt` al iniciar.
    `cuentas.txt` guarda el resultado del calculo, pero no es la fuente de verdad.
-   No se deben editar saldos manualmente en ese archivo. `data/asientos.txt`
-   debe conservarse aunque este vacio: es la fuente de verdad y un estado valido
-   cuando no hay asientos registrados.
+   No se deben editar saldos manualmente en ese archivo. `cuentas.txt` usa cinco
+   campos (`codigo|nombre|tipo|naturaleza|saldo`); los archivos antiguos de
+   cuatro campos se leen infiriendo la naturaleza y se migran al guardar.
+   `data/asientos.txt` debe conservarse aunque este vacio: es la fuente de verdad
+   y un estado valido cuando no hay asientos registrados.
 
 7. Solo existe el respaldo manual de la opcion 10. Si al iniciar se detectan
    lineas invalidas en `cuentas.txt` o asientos invalidos en `asientos.txt`, se
@@ -1031,13 +1036,16 @@ antes de recompilar para no dejar clases de versiones anteriores.
     no hay busqueda por fecha, cuenta ni descripcion.
 
 11. Para ejecutar las pruebas de regresion:
-    `powershell -ExecutionPolicy Bypass -File tests/pruebas_fase_d.ps1`.
+    `powershell -ExecutionPolicy Bypass -File tests/pruebas_fase_d.ps1` y
+    `powershell -ExecutionPolicy Bypass -File tests/pruebas_logica_contable.ps1`.
     Usan un directorio temporal y no modifican `data/` ni `backup/` reales.
 
 12. Al iniciar, `asientos.txt` se valida por bloques y los asientos invalidos se
     omiten completos. No se debe volver a cargar una partida invalida
-    parcialmente. Si hay lineas invalidas, asientos descuadrados o falla la
-    lectura, `datosInvalidos` queda activo y bloquea guardar, crear cuentas y
+    parcialmente. Se rechazan fechas fuera de `dd/MM/yyyy` entre 1900 y 2100,
+    montos con mas de dos decimales y partidas que dejarian una cuenta no Mixta
+    con saldo contrario. Si hay lineas invalidas, asientos descuadrados o falla
+    la lectura, `datosInvalidos` queda activo y bloquea guardar, crear cuentas y
     registrar asientos hasta corregir el archivo y reiniciar. El libro diario y
     los reportes usan los saldos calculados desde las partidas, no desde
     `asientoTotales`.
@@ -1063,6 +1071,18 @@ antes de recompilar para no dejar clases de versiones anteriores.
     campos `static`. No representan cuentas, asientos ni partidas y no se
     instancian. La simplificacion se completo en el Cambio 35; cualquier archivo
     nuevo debe compilarse junto con los demas.
+
+17. Cada cuenta tiene una naturaleza (`Deudora`, `Acreedora` o `Mixta`) guardada
+    en `cuentaNaturalezas`. Una cuenta no Mixta no puede quedar con saldo
+    contrario: la validacion se aplica al registrar partidas y al cargar
+    `asientos.txt`. Las excepciones del catalogo estandar son `1790` y `1890`
+    (`Acreedora`), `3120` y `3500` (`Deudora`) y `3200` (`Mixta`).
+
+18. La busqueda de cuentas vive en `Datos.buscarCuentas()` y `Datos.pedirCuenta()`.
+    El codigo exacto se resuelve primero; una consulta de solo digitos busca por
+    prefijo de codigo; el resto compara sin tildes ni mayusculas contra codigo,
+    nombre, tipo y naturaleza. Con una coincidencia se selecciona sola, con 2 a
+    12 se muestra una lista y con mas de 12 se pide un texto mas especifico.
 
 ### Cambio 35: Simplificacion segun la rubrica del curso
 
@@ -1097,9 +1117,10 @@ modulos y proteccion simple de archivos.
   reversion de asientos, la deteccion de cambios externos, el autoajuste de
   saldos y las advertencias de saldos contrarios.
 - La persistencia conserva el formato de cuatro campos de `cuentas.txt` y
-  `asientos.txt`, y el de cuatro campos de `balance.txt`. La escritura sigue
-  siendo atomica (archivo `.tmp` + movimiento) y la bandera `datosInvalidos`
-  impide guardar si la carga encontro lineas invalidas.
+  `asientos.txt`, y el de cuatro campos de `balance.txt` (en el Cambio 36
+  `cuentas.txt` paso a cinco campos). La escritura sigue siendo atomica
+  (archivo `.tmp` + movimiento) y la bandera `datosInvalidos` impide guardar si
+  la carga encontro lineas invalidas.
 - Se mantiene un guardian simple de montos ambiguos: `1.800` se rechaza y se
   pide `1800` o `1800,00`.
 - `data/periodo.txt` y `MANUAL_CIERRE_MANUAL.md` se eliminaron por obsoletos. No
@@ -1112,4 +1133,67 @@ modulos y proteccion simple de archivos.
 - `README.md` se reescribio con las 11 opciones, los cuatro modulos, los formatos
   de archivo y la recuperacion manual de respaldos.
 - `src/` quedo en 847 lineas fisicas (antes 1.374), sin contar `bin/`.
+
+### Cambio 36: Naturalezas, validacion estricta y busqueda inteligente
+
+**Razon:** El sistema permitia que una cuenta de naturaleza deudora quedara con
+saldo acreedor; por ejemplo, Inventarios con 20.000 al Debe podia recibir un
+credito de 60.000 y quedar en -40.000. Ademas, los montos aceptaban mas de dos
+decimales o notacion cientifica, la carga de asientos no validaba el rango de
+fechas ni la precision de los montos, y la busqueda de cuentas exigia recordar
+el codigo exacto o mostraba listas demasiado largas.
+
+**Impacto:**
+- `src/Datos.java`: nueva lista paralela `cuentaNaturalezas` y constantes
+  `NATURALEZAS`, `ANIO_MIN` y `ANIO_MAX`. Las 75 cuentas estandar reciben una
+  naturaleza: Activo/Costo/Gasto `Deudora`; Pasivo/Patrimonio/Ingreso
+  `Acreedora`; `1790` y `1890` `Acreedora`; `3120` y `3500` `Deudora`; `3200`
+  `Mixta`.
+- `cuentas.txt` pasa a cinco campos (`codigo|nombre|tipo|naturaleza|saldo`). Los
+  archivos de cuatro campos se leen infiriendo la naturaleza con
+  `naturalezaEstandar()` y se migran al guardar. Una naturaleza desconocida
+  invalida la linea y activa `datosInvalidos`.
+- `src/Datos.java`: `parsearMonto()` centraliza el parseo estricto. Acepta
+  `1800`, `1800.50`, `1800,50`, `1.800,50` y `1,800.50`; rechaza `1.800`,
+  `1.234`, `0.001`, `1e3`, negativos, cero, `NaN` e infinito. La carga de
+  asientos usa el mismo parser, por lo que un monto con mas de dos decimales
+  omite el bloque completo.
+- `src/Datos.java`: `parsearFecha()` exige `dd/MM/yyyy` real y el rango
+  1900-2100; `cargarBloque()` valida la fecha al cargar `asientos.txt`.
+- `src/Datos.java`: nuevas `normalizarTexto()`, `buscarCuentas()`,
+  `mostrarCuentaEncontrada()` y `pedirCuenta()`. La busqueda compara sin tildes
+  ni mayusculas contra codigo, nombre, tipo y naturaleza, admite varios terminos
+  en cualquier orden, usa prefijo de codigo para consultas de solo digitos y
+  limita la lista a 12 coincidencias. `buscarCuenta()` agrega la opcion
+  `1.3 Buscar cuenta`.
+- `src/Asientos.java`: nuevas `efectoSaldoNaturaleza()`, `saldoNaturaleza()`,
+  `saldosNaturaleza()`, `esNaturalezaAcreedora()`, `esNaturalezaMixta()` y
+  `etiquetaSaldoNaturaleza()`. `registrarAsiento()` simula los saldos por
+  naturaleza y rechaza una partida que dejaria una cuenta no Mixta con saldo
+  contrario, mostrando saldo actual, monto y saldo resultante antes de volver a
+  pedirla. La carga de `asientos.txt` aplica la misma regla y omite el asiento
+  completo.
+- `src/Asientos.java`: los prompts explican la naturaleza de la cuenta y si
+  aumenta con el Debe o con el Haber.
+- `src/Reportes.java`: cuentas T y libro mayor muestran tipo y naturaleza; el
+  saldo acumulado del libro mayor se calcula por naturaleza. Los totales de los
+  reportes siguen siendo por tipo, de modo que las cuentas de valuacion como
+  `1790` y `1890` restan dentro del Activo.
+- `src/Contabilidad.java`: `leerDouble()` usa `Datos.parsearMonto()`;
+  `leerFecha()` usa `Datos.parsearFecha()` y explica el formato y el rango. El
+  submenu de administracion agrega `3. Buscar una cuenta`.
+- `tests/pruebas_fase_d.ps1`: se actualizaron las entradas de creacion de
+  cuentas (naturaleza), los mensajes y el formato de cinco campos. La suite
+  sigue pasando.
+- `tests/pruebas_logica_contable.ps1`: nueva suite integral que cubre catalogo
+  y naturalezas, busqueda, montos y fechas estrictos, partida doble, rechazo de
+  saldos contrarios (incluido Inventarios 20.000/60.000), cuentas personalizadas
+  Deudora/Acreedora, cuentas Mixtas, depreciacion y amortizacion, los seis
+  reportes con valores exactos, migracion de cuatro a cinco campos, persistencia,
+  archivos invalidos, respaldo manual, fin de entrada y caracter `|`.
+- `data/cuentas.txt` se migro a cinco campos despues de respaldar los datos en
+  `backup/pre_naturaleza_20261111_203703_613/`. Los hashes de `asientos.txt` y
+  `balance.txt` no cambiaron.
+- `README.md` y `AGENTS.md` documentan naturalezas, busqueda, formatos y pruebas.
+- No se modifico el formato de `asientos.txt` ni la logica de partida doble.
 

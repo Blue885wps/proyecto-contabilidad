@@ -37,8 +37,8 @@ se usan mediante `Modulo.metodo()`.
 ```text
 src/
   Contabilidad.java   main, menus, lecturas validadas y salida
-  Datos.java          listas paralelas, catalogo, fechas y persistencia
-  Asientos.java       registro, partida doble, saldos y movimientos
+  Datos.java          listas paralelas, catalogo, naturalezas, busqueda y persistencia
+  Asientos.java       registro, partida doble, saldos por naturaleza y movimientos
   Reportes.java       cuentas T, diario, mayor, balanza, resultados y balance
 ```
 
@@ -61,32 +61,79 @@ objetos de dominio, herencia, polimorfismo ni interfaces.
 | 10 | Respaldar informacion |
 | 11 | Salir (tambien acepta `0`) |
 
-La opcion 1 abre un submenu con dos funciones: ver el catalogo y crear una
-cuenta. La opcion 10 crea el respaldo directamente, sin submenu.
+La opcion 1 abre un submenu con tres funciones: ver el catalogo, crear una
+cuenta y buscar una cuenta. La opcion 10 crea el respaldo directamente, sin
+submenu.
+
+## Naturaleza de las cuentas
+
+Cada cuenta tiene un tipo (`Activo`, `Pasivo`, `Patrimonio`, `Ingreso`, `Costo`
+o `Gasto`) y una naturaleza (`Deudora`, `Acreedora` o `Mixta`):
+
+| Naturaleza | Aumenta con | Saldo permitido |
+|------------|-------------|-----------------|
+| Deudora | Debe | Deudor o cero |
+| Acreedora | Haber | Acreedor o cero |
+| Mixta | Cualquiera | Deudor o acreedor |
+
+Al crear una cuenta se elige la naturaleza. La sugerencia depende del tipo:
+Activo, Costo y Gasto sugieren `Deudora`; Pasivo, Patrimonio e Ingreso sugieren
+`Acreedora`. El usuario puede cambiarla para representar cuentas de valuacion o
+contra cuentas.
+
+El catalogo estandar aplica estas excepciones:
+
+- `1790 Depreciacion acumulada` y `1890 Amortizacion acumulada`: `Acreedora`.
+- `3120 Perdida del ejercicio` y `3500 Dividendos decretados`: `Deudora`.
+- `3200 Resultados de ejercicios anteriores`: `Mixta`.
+
+Si una partida dejaria una cuenta `Deudora` con saldo acreedor o una
+`Acreedora` con saldo deudor, el programa rechaza esa partida, muestra el saldo
+actual, el monto intentado y el saldo resultante, y vuelve a pedir la partida.
+Una cuenta `Mixta` no tiene esa restriccion.
 
 ## Registrar una operacion (opcion 2)
 
-1. Fecha en formato `dd/MM/yyyy`. Enter usa la fecha actual.
+1. Fecha en formato `dd/MM/yyyy`, real y entre 1900 y 2100. Enter usa la fecha
+   actual.
 2. Descripcion del asiento. No se permite el caracter `|`.
-3. Cuenta de cada partida. Se escribe el codigo exacto; `0` cancela.
+3. Cuenta de cada partida. Se acepta el codigo exacto o una busqueda por codigo,
+   nombre, tipo o naturaleza; `0` cancela.
 4. Lado de la partida: `1` Debe (debito) o `2` Haber (credito).
-5. Monto mayor que cero, con coma o punto decimal (`1800`, `1800.50`,
-   `1800,50`). Se rechazan montos ambiguos como `1.800`.
+5. Monto mayor o igual a `0.01`, con hasta dos decimales. Se aceptan `1800`,
+   `1800.50`, `1800,50`, `1.800,50` y `1,800.50`. Se rechazan `1.800`, `1.234`,
+   `0.001`, `1e3`, negativos, cero, `NaN` e infinito.
 
 Se exigen al menos dos partidas y que el total del Debe sea igual al del Haber
 (tolerancia de 0.005). Si el asiento no cuadra, el programa muestra la diferencia
 y permite agregar otra partida o descartarlo. Antes de guardar se muestra un
 resumen y se pide confirmacion `S/N`.
 
+## Buscar cuentas
+
+La busqueda esta disponible al registrar asientos, al consultar cuentas T, al
+consultar el libro mayor y en la opcion `1.3 Buscar cuenta`.
+
+- El codigo exacto se usa de inmediato.
+- Una busqueda con solo digitos funciona como prefijo de codigo.
+- El texto se compara sin distinguir mayusculas ni tildes.
+- Se puede buscar por nombre, tipo o naturaleza, y combinar palabras en
+  cualquier orden; por ejemplo `activo acreedora` o `gasto depreciacion`.
+- Si hay una sola coincidencia se selecciona automaticamente.
+- Si hay entre 2 y 12 coincidencias se muestra una lista numerada.
+- Si hay mas de 12 se pide escribir un texto mas especifico.
+- `?` muestra el catalogo completo y `0` cancela.
+
 ## Consultas y reportes
 
-- **Cuentas T (opcion 3):** pide el codigo de una cuenta y muestra sus cargos y
-  abonos en dos columnas, con totales y saldo deudor/acreedor/cero.
+- **Cuentas T (opcion 3):** permite buscar una cuenta y muestra su tipo,
+  naturaleza, cargos y abonos en dos columnas, con totales y saldo
+  deudor/acreedor/cero.
 - **Libro diario (opcion 4):** muestra todos los asientos en orden de fecha con
   el formato clasico `Cta | Detalle | Parcial | Debe | Haber`, con totales por
   asiento y total general.
-- **Libro mayor (opcion 5):** pide una cuenta y muestra sus movimientos con el
-  saldo acumulado.
+- **Libro mayor (opcion 5):** permite buscar una cuenta y muestra su tipo,
+  naturaleza, movimientos y saldo acumulado.
 - **Balanza de comprobacion (opcion 6):** muestra debitos, creditos, deudor y
   acreedor por cuenta, y verifica que la balanza cuadre.
 - **Estado de resultados (opcion 7):** calcula utilidad bruta (ingresos menos
@@ -106,12 +153,17 @@ el proximo guardado sobrescribe los cambios externos.
 
 ### `data/cuentas.txt`
 
-Cuatro campos por linea: `codigo|nombre|tipo|saldo`.
+Cinco campos por linea: `codigo|nombre|tipo|naturaleza|saldo`.
 
 ```text
-1000|Caja|Activo|11500.00
-3000|Capital social|Patrimonio|10000.00
+1000|Caja|Activo|Deudora|61500.00
+1790|Depreciacion acumulada|Activo|Acreedora|0.00
+3200|Resultados de ejercicios anteriores|Patrimonio|Mixta|0.00
 ```
+
+Los archivos antiguos de cuatro campos (`codigo|nombre|tipo|saldo`) se siguen
+leyendo: la naturaleza se deduce del codigo y del tipo, y al guardar el archivo
+se reescribe con los cinco campos.
 
 Los saldos son derivados: se recalculan desde los asientos al iniciar. No se
 deben editar a mano.
@@ -139,8 +191,10 @@ del respaldo hacia `data/`.
 
 ## Validaciones y proteccion de archivos
 
-- Al iniciar se validan las cuentas y los asientos. Una linea invalida o un
-  asiento descuadrado se omite completo y se informa por consola.
+- Al iniciar se validan las cuentas y los asientos. Una linea invalida, un
+  asiento descuadrado, una fecha fuera de `dd/MM/yyyy` entre 1900 y 2100, un
+  monto con mas de dos decimales o una partida que dejaria una cuenta no Mixta
+  con saldo contrario se omite completo y se informa por consola.
 - Si hay datos invalidos, el programa permite consultar pero **no guarda** ni
   permite crear cuentas o registrar asientos, para no sobrescribir el archivo
   original. Corrija el archivo y reinicie.
@@ -156,8 +210,13 @@ del respaldo hacia `data/`.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tests/pruebas_fase_d.ps1
+powershell -ExecutionPolicy Bypass -File tests/pruebas_logica_contable.ps1
 ```
 
-Las pruebas compilan en un directorio temporal, cubren menu, catalogo, registro,
-validaciones, reportes, respaldo y archivos invalidos, y no modifican `data/` ni
-`backup/` reales.
+Las pruebas compilan en un directorio temporal y no modifican `data/` ni
+`backup/` reales. La primera suite cubre menu, catalogo, registro, validaciones,
+reportes, respaldo y archivos invalidos. La segunda cubre naturalezas, busqueda
+de cuentas, montos y fechas estrictos, partida doble, saldos contrarios,
+depreciacion y amortizacion, los seis reportes con valores exactos, migracion de
+archivos de cuatro a cinco campos, persistencia, datos invalidos y fin de
+entrada.

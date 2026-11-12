@@ -48,8 +48,23 @@ function New-TestDir {
 
 function Copy-Data {
     param([string]$Dir)
-    Copy-Item (Join-Path $root "data\cuentas.txt") (Join-Path $Dir "data\") -Force
-    Copy-Item (Join-Path $root "data\asientos.txt") (Join-Path $Dir "data\") -Force
+    # Datos demo fijos para que las pruebas no dependan de data/ real.
+    # El catalogo se inicializa solo al no existir cuentas.txt.
+    $demo = @(
+        "ASIENTO|01/11/2026|Aporte de capital|10000.00",
+        "PARTIDA|1000|Debito|10000.00",
+        "PARTIDA|3000|Credito|10000.00",
+        "ASIENTO|02/11/2026|Compra de papeleria|1000.00",
+        "PARTIDA|6020|Debito|1000.00",
+        "PARTIDA|1000|Credito|1000.00",
+        "ASIENTO|03/11/2026|Venta de servicios|3000.00",
+        "PARTIDA|1000|Debito|3000.00",
+        "PARTIDA|4020|Credito|3000.00",
+        "ASIENTO|04/11/2026|Pago de renta|500.00",
+        "PARTIDA|6060|Debito|500.00",
+        "PARTIDA|1000|Credito|500.00"
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $Dir "data\asientos.txt") ($demo + "`r`n")
 }
 
 function Write-Input {
@@ -106,17 +121,17 @@ try {
     Assert-Contains $out "Caja" "cuenta Caja en catalogo"
 
     $dir = New-TestDir "crear"
-    $input = Write-Input $dir "entrada.txt" @("1", "2", "Caja chica", "1", "1010", "0", "11")
+    $input = Write-Input $dir "entrada.txt" @("1", "2", "Caja chica", "1", "1", "1010", "0", "11")
     $out = Invoke-App $dir $input
-    Assert-Contains $out "Cuenta creada: 1010 - Caja chica (Activo)." "crear cuenta"
+    Assert-Contains $out "Cuenta creada: 1010 - Caja chica (Activo, Deudora)." "crear cuenta"
     $cuentas = Get-Content (Join-Path $dir "data\cuentas.txt") -Raw
-    Assert-Contains $cuentas "1010|Caja chica|Activo|0.00" "cuenta persistida"
+    Assert-Contains $cuentas "1010|Caja chica|Activo|Deudora|0.00" "cuenta persistida"
 
     $dir = New-TestDir "duplicada"
-    $input = Write-Input $dir "entrada.txt" @("1", "2", "Duplicada", "1", "1000", "1011", "0", "11")
+    $input = Write-Input $dir "entrada.txt" @("1", "2", "Duplicada", "1", "1", "1000", "1011", "0", "11")
     $out = Invoke-App $dir $input
     Assert-Contains $out "El codigo ya existe." "rechazo de codigo duplicado"
-    Assert-Contains $out "Cuenta creada: 1011 - Duplicada (Activo)." "codigo libre tras duplicado"
+    Assert-Contains $out "Cuenta creada: 1011 - Duplicada (Activo, Deudora)." "codigo libre tras duplicado"
 
     # ------------------------------------------------------------------
     # Registro de asientos y persistencia

@@ -7,9 +7,36 @@ public class Asientos {
         return tipoCuenta.equals("Activo") || tipoCuenta.equals("Costo") || tipoCuenta.equals("Gasto");
     }
 
-    static double efectoSaldo(String tipoCuenta, String tipoPartida, double monto) {
+    static boolean esNaturalezaAcreedora(int idxCuenta) {
+        return Datos.cuentaNaturalezas.get(idxCuenta).equals("Acreedora");
+    }
+
+    static boolean esNaturalezaMixta(int idxCuenta) {
+        return Datos.cuentaNaturalezas.get(idxCuenta).equals("Mixta");
+    }
+
+    static double efectoSaldoNaturaleza(int idxCuenta, String tipoPartida, double monto) {
         boolean debito = tipoPartida.equalsIgnoreCase("Debito");
-        return tipoDeudor(tipoCuenta) ? (debito ? monto : -monto) : (debito ? -monto : monto);
+        return esNaturalezaAcreedora(idxCuenta) ? (debito ? -monto : monto) : (debito ? monto : -monto);
+    }
+
+    static double saldoNaturaleza(int idxCuenta, double saldoTipo) {
+        double saldoDebito = tipoDeudor(Datos.cuentaTipos.get(idxCuenta)) ? saldoTipo : -saldoTipo;
+        return esNaturalezaAcreedora(idxCuenta) ? -saldoDebito : saldoDebito;
+    }
+
+    static List<Double> saldosNaturaleza() {
+        List<Double> saldosTipo = saldos();
+        List<Double> resultado = new ArrayList<>();
+        for (int i = 0; i < saldosTipo.size(); i++) resultado.add(saldoNaturaleza(i, saldosTipo.get(i)));
+        return resultado;
+    }
+
+    static String etiquetaSaldoNaturaleza(double saldo, String naturaleza) {
+        if (Math.abs(saldo) <= Datos.TOLERANCIA) return "Cero";
+        if (naturaleza.equals("Deudora")) return saldo > 0 ? "Deudor" : "Acreedor";
+        if (naturaleza.equals("Acreedora")) return saldo > 0 ? "Acreedor" : "Deudor";
+        return saldo > 0 ? "Deudor" : "Acreedor";
     }
 
     static double totalLado(List<String> tipos, List<Double> montos, String lado) {
@@ -38,66 +65,108 @@ public class Asientos {
             return;
         }
         System.out.println("\n--- REGISTRAR ASIENTO ---");
-        System.out.println("Indique fecha, descripcion y al menos dos partidas. Debe = Haber.");
+        System.out.println("Se pediran 3 datos: fecha, descripcion y partidas.");
+        System.out.println("Cada asiento necesita al menos 2 partidas y el total del Debe debe ser igual al del Haber.");
+        System.out.println("Paso 1 de 3: fecha del asiento.");
         String fecha = Contabilidad.leerFecha("Fecha del asiento");
         if (fecha == null) { System.out.println("Asiento cancelado."); return; }
-        String descripcion = Contabilidad.leerTextoPersistible("Descripcion: ", "descripcion");
+        System.out.println("Paso 2 de 3: descripcion.");
+        String descripcion = Contabilidad.leerTextoPersistible("Descripcion (ej: Compra de papeleria): ", "descripcion");
         if (Contabilidad.entradaCerrada || descripcion == null) { System.out.println("Asiento cancelado."); return; }
+        System.out.println("Paso 3 de 3: partidas.");
+        System.out.println("Para cada partida indique cuenta, lado (Debe/Haber) y monto.");
         List<String> codigos = new ArrayList<>(), tipos = new ArrayList<>();
         List<Double> montos = new ArrayList<>();
         double[] totales = {0, 0};
+        List<Double> saldosLista = saldosNaturaleza();
+        double[] saldos = new double[saldosLista.size()];
+        for (int i = 0; i < saldosLista.size(); i++) saldos[i] = saldosLista.get(i);
         while (true) {
-            if (!pedirPartida(codigos, tipos, montos, totales)) { System.out.println("Asiento cancelado."); return; }
-            if (codigos.size() < 2) { System.out.println("Minimo 2 partidas. Ingrese la segunda."); continue; }
-            if (!cuadra(totales[0], totales[1])) {
-                System.out.printf("El asiento no cuadra: Debe %.2f | Haber %.2f | Diferencia %.2f%n", totales[0], totales[1], Math.abs(totales[0] - totales[1]));
-                if (!Contabilidad.confirmar("Agregar otra partida para cuadrar? (S/N): ")) { System.out.println("Asiento cancelado."); return; }
+            if (!pedirPartida(codigos, tipos, montos, totales, saldos)) { System.out.println("Asiento cancelado."); return; }
+            if (codigos.size() < 2) {
+                System.out.println("Faltan partidas: el asiento necesita al menos 2. Ingrese la siguiente partida.");
                 continue;
             }
-            if (!Contabilidad.confirmar("Agregar otra partida? (S/N): ")) break;
+            if (!cuadra(totales[0], totales[1])) {
+                System.out.println("El asiento no cuadra todavia.");
+                System.out.printf("Debe %.2f | Haber %.2f | Diferencia %.2f.%n", totales[0], totales[1], Math.abs(totales[0] - totales[1]));
+                System.out.println("Debe agregar otra partida para igualar el Debe y el Haber. Si no, el asiento se descarta.");
+                if (!Contabilidad.confirmar("Desea agregar otra partida para cuadrarlo? (S/N): ")) {
+                    System.out.println("Asiento cancelado. No se guardo ningun dato.");
+                    return;
+                }
+                continue;
+            }
+            if (!Contabilidad.confirmar("El asiento esta cuadrado. Desea agregar otra partida? (S/N): ")) break;
         }
-        System.out.println("\n--- RESUMEN ---");
-        System.out.println("Fecha: " + fecha);
-        System.out.println("Descripcion: " + descripcion);
+        System.out.println("\n--- REVISION DEL ASIENTO ---");
+        System.out.println("Revise fecha, descripcion, partidas y totales. Si algo esta mal, responda N para descartarlo completo.");
         mostrarPartidas(codigos, tipos, montos);
         System.out.println("-".repeat(70));
         System.out.printf("%-54s %12.2f%n", "TOTAL DEBE:", totales[0]);
         System.out.printf("%-54s %12.2f%n", "TOTAL HABER:", totales[1]);
-        if (!Contabilidad.confirmar("Guardar? (S/N): ")) { System.out.println("Asiento cancelado."); return; }
+        if (!Contabilidad.confirmar("Los datos son correctos. Guardar el asiento? (S/N): ")) {
+            System.out.println("Asiento cancelado. No se guardo ningun dato.");
+            return;
+        }
         agregarAsiento(fecha, descripcion, codigos, tipos, montos, totales[0]);
         recalcularSaldos();
         if (!Datos.guardarAsientos()) {
             quitarUltimoAsiento(); recalcularSaldos();
-            System.out.println("Error guardando."); return;
+            System.out.println("No se pudo guardar el asiento. No se modifico el archivo."); return;
         }
         if (!Datos.guardarCuentas()) System.out.println("Asiento guardado, pero no se actualizo " + Datos.ARCHIVO_CUENTAS + ".");
         System.out.println("Asiento registrado exitosamente.");
     }
 
-    static boolean pedirPartida(List<String> codigos, List<String> tipos, List<Double> montos, double[] totales) {
-        String codigo = Datos.pedirCuenta("Cuenta de la partida " + (codigos.size() + 1));
-        if (codigo == null) return false;
-        int indice = Datos.indiceCuenta(codigo);
-        String tipo = pedirTipoPartida(Datos.cuentaTipos.get(indice), Datos.cuentaNombres.get(indice));
-        if (tipo == null) return false;
-        double monto = Contabilidad.leerDouble("  Monto: ");
-        if (Contabilidad.entradaCerrada) return false;
-        codigos.add(codigo); tipos.add(tipo); montos.add(monto);
-        if (tipo.equals("Debito")) totales[0] += monto; else totales[1] += monto;
-        System.out.printf("  Acumulado: Debe %.2f | Haber %.2f%n", totales[0], totales[1]);
-        if (!cuadra(totales[0], totales[1]))
-            System.out.printf("  Para cuadrar faltan %.2f en el %s.%n", Math.abs(totales[0] - totales[1]), totales[0] > totales[1] ? "Haber" : "Debe");
-        else System.out.println("  El asiento esta cuadrado: Debe = Haber.");
-        return true;
+    static boolean pedirPartida(List<String> codigos, List<String> tipos, List<Double> montos, double[] totales, double[] saldos) {
+        while (true) {
+            String codigo = Datos.pedirCuenta("Cuenta de la partida " + (codigos.size() + 1));
+            if (codigo == null) return false;
+            int indice = Datos.indiceCuenta(codigo);
+            String naturaleza = Datos.cuentaNaturalezas.get(indice);
+            String tipo = pedirTipoPartida(Datos.cuentaTipos.get(indice), Datos.cuentaNombres.get(indice), naturaleza);
+            if (tipo == null) return false;
+            double monto = Contabilidad.leerDouble("Monto de la partida " + (codigos.size() + 1) + " (0.01 o mas, hasta 2 decimales): ");
+            if (Contabilidad.entradaCerrada) return false;
+            double actual = saldos[indice];
+            double efecto = efectoSaldoNaturaleza(indice, tipo, monto);
+            double resultante = actual + efecto;
+            if (!esNaturalezaMixta(indice) && resultante < -Datos.TOLERANCIA) {
+                System.out.println("PARTIDA RECHAZADA: la cuenta " + codigo + " - " + Datos.cuentaNombres.get(indice) + " es " + naturaleza + ".");
+                System.out.printf("  Saldo actual: %.2f (%s).%n", Math.abs(actual), etiquetaSaldoNaturaleza(actual, naturaleza));
+                System.out.printf("  Monto al %s: %.2f. Saldo resultante: %.2f (%s).%n", Datos.etiquetaLado(tipo), monto,
+                        Math.abs(resultante), etiquetaSaldoNaturaleza(resultante, naturaleza));
+                System.out.println("  No se permite que una cuenta " + naturaleza + " quede con saldo contrario.");
+                System.out.println("  La partida no se agrego. Elija otra cuenta, el lado contrario o un monto menor.");
+                continue;
+            }
+            codigos.add(codigo); tipos.add(tipo); montos.add(monto);
+            saldos[indice] = resultante;
+            if (tipo.equals("Debito")) totales[0] += monto; else totales[1] += monto;
+            System.out.printf("  Partida agregada: %s - %s, %s %.2f.%n", codigo, Datos.cuentaNombres.get(indice), Datos.etiquetaLado(tipo), monto);
+            System.out.printf("  Acumulado del asiento: Debe %.2f | Haber %.2f.%n", totales[0], totales[1]);
+            if (!cuadra(totales[0], totales[1]))
+                System.out.printf("  Para cuadrar faltan %.2f en el %s.%n", Math.abs(totales[0] - totales[1]), totales[0] > totales[1] ? "Haber" : "Debe");
+            else System.out.println("  El asiento esta cuadrado: Debe = Haber.");
+            return true;
+        }
     }
 
-    static String pedirTipoPartida(String tipoCuenta, String nombreCuenta) {
-        System.out.println("Lado de la partida para " + nombreCuenta + " (" + tipoCuenta + "):");
-        System.out.println("  1. Debe (debito)   2. Haber (credito)");
-        System.out.println("  " + (tipoDeudor(tipoCuenta) ? "Debe aumenta | Haber disminuye" : "Debe disminuye | Haber aumenta"));
-        int opcion = Contabilidad.leerInt("Seleccione 1 o 2: ", 1, 2);
+    static String pedirTipoPartida(String tipoCuenta, String nombreCuenta, String naturaleza) {
+        System.out.println("Lado de la partida para " + nombreCuenta + " (" + tipoCuenta + ", " + naturaleza + "):");
+        System.out.println("  1. Debe  (debito)");
+        System.out.println("  2. Haber (credito)");
+        System.out.println("  " + pistaNaturaleza(naturaleza));
+        int opcion = Contabilidad.leerInt("Seleccione el lado (1 o 2): ", 1, 2);
         if (Contabilidad.entradaCerrada) return null;
         return opcion == 1 ? "Debito" : "Credito";
+    }
+
+    static String pistaNaturaleza(String naturaleza) {
+        if (naturaleza.equals("Deudora")) return "Esta cuenta aumenta con el Debe y disminuye con el Haber.";
+        if (naturaleza.equals("Acreedora")) return "Esta cuenta aumenta con el Haber y disminuye con el Debe.";
+        return "Esta cuenta es Mixta: puede recibir partidas al Debe o al Haber.";
     }
 
     static double[][] movimientos() {
@@ -159,13 +228,14 @@ public class Asientos {
 
     static void mostrarAsientos() {
         System.out.println("\n=== ASIENTOS REGISTRADOS ===");
-        if (Datos.asientoFechas.isEmpty()) { System.out.println("No hay asientos."); return; }
+        System.out.println("Se muestran todos los asientos con su numero, fecha, descripcion y partidas.");
+        if (Datos.asientoFechas.isEmpty()) { System.out.println("No hay asientos registrados."); return; }
         for (int i = 0; i < Datos.asientoFechas.size(); i++) {
             System.out.println("\nAsiento #" + (i + 1));
             System.out.println("Fecha: " + Datos.asientoFechas.get(i));
             System.out.println("Descripcion: " + Datos.asientoDescripciones.get(i));
             mostrarPartidas(Datos.partidaCodigos.get(i), Datos.partidaTipos.get(i), Datos.partidaMontos.get(i));
-            System.out.printf("  Total: %.2f%n", Datos.asientoTotales.get(i));
+            System.out.printf("  Total del asiento: %.2f%n", Datos.asientoTotales.get(i));
         }
     }
 
