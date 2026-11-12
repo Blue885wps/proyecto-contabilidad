@@ -1,0 +1,75 @@
+1000|Caja|Activo|Deudora|35000.00
+1100|Bancos|Activo|Deudora|0.00
+1110|Inversiones temporales|Activo|Deudora|0.00
+1200|Cuentas por cobrar|Activo|Deudora|0.00
+1210|Clientes|Activo|Deudora|0.00
+1220|Documentos por cobrar|Activo|Deudora|0.00
+1230|Deudores diversos|Activo|Deudora|0.00
+1300|Inventarios|Activo|Deudora|15000.00
+1310|Materias primas|Activo|Deudora|0.00
+1320|Productos terminados|Activo|Deudora|0.00
+1400|Activos fijos|Activo|Deudora|0.00
+1410|Mobiliario y equipo|Activo|Deudora|0.00
+1420|Equipo de transporte|Activo|Deudora|12000.00
+1430|Equipo de computo|Activo|Deudora|0.00
+1500|Activos diferidos|Activo|Deudora|0.00
+1510|Gastos pagados por anticipado|Activo|Deudora|0.00
+1520|Seguros pagados por anticipado|Activo|Deudora|0.00
+1600|Cuentas por cobrar a largo plazo|Activo|Deudora|0.00
+1700|Propiedad, planta y equipo|Activo|Deudora|0.00
+1790|Depreciacion acumulada|Activo|Acreedora|-500.00
+1800|Activos intangibles|Activo|Deudora|0.00
+1890|Amortizacion acumulada|Activo|Acreedora|0.00
+2000|Cuentas por pagar|Pasivo|Acreedora|-7000.00
+2010|Proveedores|Pasivo|Acreedora|0.00
+2020|Acreedores diversos|Pasivo|Acreedora|0.00
+2100|Prestamos bancarios|Pasivo|Acreedora|0.00
+2110|Prestamos a corto plazo|Pasivo|Acreedora|0.00
+2120|Prestamos a largo plazo|Pasivo|Acreedora|0.00
+2200|Impuestos por pagar|Pasivo|Acreedora|0.00
+2210|IVA por pagar|Pasivo|Acreedora|0.00
+2220|ISR por pagar|Pasivo|Acreedora|0.00
+2300|Pasivos diferidos|Pasivo|Acreedora|0.00
+2310|Anticipos de clientes|Pasivo|Acreedora|0.00
+2320|Intereses cobrados por anticipado|Pasivo|Acreedora|0.00
+2400|Pasivos por impuestos diferidos|Pasivo|Acreedora|0.00
+2500|Obligaciones financieras a largo plazo|Pasivo|Acreedora|0.00
+2600|Pasivos por beneficios a empleados|Pasivo|Acreedora|0.00
+3000|Capital social|Patrimonio|Acreedora|-50000.00
+3010|Capital aportado|Patrimonio|Acreedora|0.00
+3020|Capital ganado|Patrimonio|Acreedora|0.00
+3100|Utilidades retenidas|Patrimonio|Acreedora|0.00
+3110|Utilidad del ejercicio|Patrimonio|Acreedora|0.00
+3120|Perdida del ejercicio|Patrimonio|Deudora|0.00
+3200|Resultados de ejercicios anteriores|Patrimonio|Mixta|0.00
+3300|Reservas legales|Patrimonio|Acreedora|0.00
+3400|Ajustes por revaluacion|Patrimonio|Acreedora|0.00
+3500|Dividendos decretados|Patrimonio|Deudora|0.00
+4000|Ingresos|Ingreso|Acreedora|0.00
+4010|Ventas|Ingreso|Acreedora|-8000.00
+4020|Ingresos por servicios|Ingreso|Acreedora|0.00
+4030|Ingresos por intereses|Ingreso|Acreedora|0.00
+4040|Otros ingresos|Ingreso|Acreedora|0.00
+4050|Ingresos por alquileres|Ingreso|Acreedora|0.00
+4060|Ingresos por comisiones|Ingreso|Acreedora|0.00
+4070|Ingresos por dividendos|Ingreso|Acreedora|0.00
+5000|Costos|Costo|Deudora|0.00
+5010|Costo de ventas|Costo|Deudora|0.00
+5020|Costo de produccion|Costo|Deudora|0.00
+5030|Costo de lo vendido|Costo|Deudora|0.00
+6000|Gastos|Gasto|Deudora|0.00
+6010|Gastos de venta|Gasto|Deudora|0.00
+6020|Gastos de administracion|Gasto|Deudora|0.00
+6030|Gastos financieros|Gasto|Deudora|0.00
+6040|Gastos de operacion|Gasto|Deudora|0.00
+6050|Sueldos y salarios|Gasto|Deudora|0.00
+6060|Renta|Gasto|Deudora|3000.00
+6070|Servicios publicos|Gasto|Deudora|0.00
+6080|Depreciacion|Gasto|Deudora|500.00
+6090|Amortizacion|Gasto|Deudora|0.00
+6100|Gastos de publicidad y mercadeo|Gasto|Deudora|0.00
+6110|Gastos de mantenimiento|Gasto|Deudora|0.00
+6120|Gastos de seguros|Gasto|Deudora|0.00
+6130|Gastos de impuestos|Gasto|Deudora|0.00
+6140|Gastos de capacitacion|Gasto|Deudora|0.00
+6150|Gastos de viajes y representacion|Gasto|Deudora|0.00
