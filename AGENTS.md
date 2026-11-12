@@ -3,38 +3,34 @@
 ## Descripcion general
 
 Sistema de contabilidad en Java con interfaz de consola para registro de asientos
-contables bajo el metodo de partida doble, con reportes historicos o filtrados
-por un rango de fechas. Los datos se persisten en archivos de texto plano
+contables bajo el metodo de partida doble, con los seis reportes basicos de la
+consigna y menu de 11 opciones. Los datos se persisten en archivos de texto plano
 (`cuentas.txt`, `asientos.txt`, `balance.txt`) utilizando las librerias nativas
-de Java (`java.io` / `java.nio`).
+de Java (`java.io` / `java.nio`). Todos los reportes usan el historico completo.
 
 ## Estructura del proyecto
 
 ```
 proyecto contabilidad/
 ├── src/
-│   ├── Contabilidad.java    # main, menus, opcion 12 y salida
-│   ├── Estado.java          # listas paralelas, rango y tolerancias
-│   ├── Consola.java         # Scanner, menus y lecturas validadas
-│   ├── Fechas.java          # fechas y ordenamiento
-│   ├── Formato.java         # montos, texto y etiquetas
-│   ├── Persistencia.java    # archivos, bloqueos, carga/guardado y respaldos
-│   ├── Cuentas.java         # catalogo, tipos, creacion y busqueda de cuentas
-│   ├── Asientos.java        # registro, saldos, movimientos y busquedas
-│   └── Reportes.java        # balanza, diario, mayor, cuentas T y balances
+│   ├── Contabilidad.java    # main, menus, lecturas validadas y salida
+│   ├── Datos.java           # listas paralelas, catalogo, fechas y persistencia
+│   ├── Asientos.java        # registro, partida doble, saldos y movimientos
+│   └── Reportes.java        # cuentas T, diario, mayor, balanza, resultados y balance
 ├── data/
 │   ├── cuentas.txt          # Catalogo de cuentas con saldos
 │   ├── asientos.txt         # Asientos contables registrados
-│   ├── periodo.txt          # Archivo heredado, ya no lo usa el programa
 │   └── balance.txt          # Ultimo balance generado
 ├── bin/
-│   └── *.class              # Clases compiladas de los nueve modulos
+│   └── *.class              # Clases compiladas de los cuatro modulos
+├── tests/
+│   └── pruebas_fase_d.ps1   # Pruebas de regresion en directorio temporal
 └── AGENTS.md                # Este archivo
 ```
 
-> Desde el Cambio 34 la separacion en modulos es efectiva. Los nueve archivos
-> son modulos `static` de organizacion; el dominio sigue representado por las
-> listas paralelas de `Estado` y no se instancian clases del proyecto.
+> Desde el Cambio 35 la aplicacion se organiza en cuatro modulos `static`. El
+> dominio sigue representado por las listas paralelas de `Datos` y no se
+> instancian clases del proyecto.
 
 ## Reglas de codigo
 
@@ -88,6 +84,7 @@ proyecto contabilidad/
 - Verificar que el tipo de partida sea "Debito" o "Credito"
 - Verificar que debitos sean iguales a creditos (partida doble)
 - Verificar que la fecha del asiento sea una fecha real en formato `dd/MM/yyyy`
+- Verificar que la fecha este entre 1900 y 2100
 - Tolerancia de 0.005 para comparaciones de montos
 
 ## Reglas contables
@@ -118,8 +115,7 @@ proyecto contabilidad/
 
 - Utilidad bruta = Ingresos - Costos
 - Utilidad neta = Utilidad bruta - Gastos
-- Los asientos de cierre legacy (`|CIERRE`) no se cuentan en el estado de
-  resultados para no duplicar el resultado.
+- Se calcula con los saldos de las cuentas de Ingreso, Costo y Gasto.
 
 ## Catalogo de cuentas (75 cuentas)
 
@@ -989,11 +985,10 @@ antes de recompilar para no dejar clases de versiones anteriores.
 ## Notas para el desarrollador
 
 1. Si se agrega un nuevo tipo de cuenta, actualizar:
-   - El arreglo `TIPOS_CUENTA` y la lista `TIPOS` en `Cuentas.java` (fuente
-     unica para `tipoValido()`, `pedirTipoCuenta()` y `sugerirCodigoCuenta()`)
-   - La logica de `efectoSaldo()` en `Asientos.java` para definir el efecto del
-     debito/credito
-   - La logica de `recalcularSaldos()` y `tipoDeudor()` en `Asientos.java`
+   - El arreglo `TIPOS_CUENTA` en `Datos.java` (fuente unica para `tipoValido()`
+     y `pedirTipoCuenta()`)
+   - La logica de `efectoSaldo()` y `tipoDeudor()` en `Asientos.java` para
+     definir el efecto del debito/credito y el saldo normal
    - La logica de balance y estado de resultados en `Reportes.java`
 
 2. Las listas paralelas deben mantenerse sincronizadas: el indice `i` representa
@@ -1013,12 +1008,12 @@ antes de recompilar para no dejar clases de versiones anteriores.
    debe conservarse aunque este vacio: es la fuente de verdad y un estado valido
    cuando no hay asientos registrados.
 
-7. Solo existe el respaldo manual de la opcion 10. Ademas, si al iniciar se
-   detectan lineas invalidas en `cuentas.txt` o asientos invalidos en
-   `asientos.txt`, se guarda una copia unica del archivo original como
-   `backup/cuentas_invalidas_....txt` o `backup/asientos_invalidos_....txt`.
-   No se crean respaldos automaticos periodicos (`diario_`, `ajuste_`,
-   `recalculo_`, `reinicio_`) ni se podan carpetas de `backup/`.
+7. Solo existe el respaldo manual de la opcion 10. Si al iniciar se detectan
+   lineas invalidas en `cuentas.txt` o asientos invalidos en `asientos.txt`, se
+   activa `datosInvalidos`, se informa por consola y no se sobrescribe ningun
+   archivo. No se crean respaldos automaticos ni copias de archivos invalidos.
+   El archivo original queda intacto para corregirlo a mano o restaurar un
+   respaldo.
 
 8. El respaldo manual se crea con la opcion 10 en
    `backup/manual_YYYYMMDD_HHmmss_SSS/` y copia `cuentas.txt`, `asientos.txt` y
@@ -1029,52 +1024,92 @@ antes de recompilar para no dejar clases de versiones anteriores.
    programa y copie manualmente `cuentas.txt`, `asientos.txt` y `balance.txt`
    desde la carpeta del respaldo hacia `data/`.
 
-10. Los reportes usan el rango configurado en la opcion 12; si no hay rango
-    configurado, usan el historico completo. La balanza y el balance general
-    acumulan hasta la fecha final; el libro diario, el libro mayor, las cuentas
-    T, el estado de resultados y el catalogo usan el rango. La busqueda de
-    asientos (9.2) solo permite fecha exacta o texto en la descripcion y no
-    modifica saldos ni archivos. Tampoco existe deteccion de cambios externos:
-    si se editan los archivos con el programa abierto, el proximo guardado
-    sobrescribe esas ediciones.
+10. Todos los reportes usan el historico completo: no hay periodos, rangos de
+    fechas ni vista periodo/historico. Tampoco existe deteccion de cambios
+    externos: si se editan los archivos con el programa abierto, el proximo
+    guardado sobrescribe esas ediciones. La opcion 9 solo lista los asientos;
+    no hay busqueda por fecha, cuenta ni descripcion.
 
 11. Para ejecutar las pruebas de regresion:
     `powershell -ExecutionPolicy Bypass -File tests/pruebas_fase_d.ps1`.
     Usan un directorio temporal y no modifican `data/` ni `backup/` reales.
 
-12. Al iniciar, `asientos.txt` se valida y los asientos invalidos se omiten
-    completos. No se debe volver a cargar una partida invalida parcialmente.
-    Si falla la lectura del archivo o la copia de seguridad,
-    `bloquearGuardadoAsientos` impide guardar y registrar asientos hasta
-    corregir el archivo. El libro diario y los reportes deben seguir usando los
-    saldos calculados desde las partidas, no desde `asientoTotales`.
+12. Al iniciar, `asientos.txt` se valida por bloques y los asientos invalidos se
+    omiten completos. No se debe volver a cargar una partida invalida
+    parcialmente. Si hay lineas invalidas, asientos descuadrados o falla la
+    lectura, `datosInvalidos` queda activo y bloquea guardar, crear cuentas y
+    registrar asientos hasta corregir el archivo y reiniciar. El libro diario y
+    los reportes usan los saldos calculados desde las partidas, no desde
+    `asientoTotales`.
 
-13. El rango de reportes de la opcion 12 vive solo en memoria (`Estado.rangoDesde`
-    y `Estado.rangoHasta`). No se guarda en `data/` y se pierde al salir. Un
-    rango vacio significa historico completo. Los asientos de cierre legacy usan
-    cinco campos en `asientos.txt`; los normales siguen usando cuatro. No se
-    deben borrar ni editar a mano los asientos de cierre sin recalcular los
-    saldos.
+13. `asientos.txt` usa cuatro campos por asiento (`ASIENTO|fecha|descripcion|
+    total`) y cuatro por partida (`PARTIDA|codigo|tipo|monto`). No se admiten
+    marcas de cierre ni campos adicionales.
 
-14. Si `cuentas.txt` queda vacio o sin lineas validas, el programa arranca con
-    `bloquearGuardadoCuentas = true`: en ese estado `data/asientos.txt` no debe
-    sobrescribirse, porque sus cuentas todavia no existen y los asientos se
-    perderian. La opcion 1.4 (`reconstruirCatalogo()`) es la via de
-    recuperacion: reconstruye las 75 cuentas, guarda la copia del archivo
-    anterior y recarga los asientos. Si la recarga falla, se activan
-    `bloquearGuardadoAsientos` y `bloquearGuardadoCuentas` hasta reiniciar; si
-    solo falla el respaldo de asientos invalidos, se mantiene
-    `bloquearGuardadoAsientos` para no sobrescribir el original.
+14. Si `cuentas.txt` queda vacio o sin lineas validas, se usa el catalogo
+    estandar solo en memoria y `datosInvalidos` queda activo: no se sobrescribe
+    `cuentas.txt` ni `asientos.txt`, porque las cuentas de los asientos no
+    existirian. Para recuperar, restaure un respaldo o corrija el archivo y
+    reinicie. No hay reconstruccion integrada del catalogo.
 
 15. Todas las lecturas de la consola pasan por `leerEntrada()`. Cuando se agota
     la entrada, esa funcion activa `entradaCerrada` y devuelve `null`. Todo
-    llamador debe validar el retorno: `leerString()` puede devolver `null`,
-    `leerInt()` devuelve el minimo, `leerDouble()` devuelve `0.0` y
-    `leerFecha()` devuelve `null`. Ningun metodo debe llamar `equals`, `split` o
-    `contains` sobre esos retornos sin verificarlos.
+    llamador debe validar el retorno: `leerInt()` devuelve el minimo,
+    `leerDouble()` devuelve `0.0` y `leerFecha()` devuelve `null`. Ningun metodo
+    debe llamar `equals`, `split` o `contains` sobre esos retornos sin
+    verificarlos.
 
-16. Los nueve archivos de `src/` son modulos de organizacion con metodos y
+16. Los cuatro archivos de `src/` son modulos de organizacion con metodos y
     campos `static`. No representan cuentas, asientos ni partidas y no se
-    instancian. La separacion fisica se completo en el Cambio 34; cualquier
-    archivo nuevo debe compilarse junto con los demas.
+    instancian. La simplificacion se completo en el Cambio 35; cualquier archivo
+    nuevo debe compilarse junto con los demas.
+
+### Cambio 35: Simplificacion segun la rubrica del curso
+
+**Razon:** El proyecto conservaba funciones que no forman parte de la consigna
+(periodos, rangos de reportes, cierre automatico, reconstruccion del catalogo,
+advertencias de saldos contrarios, busquedas avanzadas y respaldos automaticos)
+y el codigo seguia repartido en nueve modulos. Se acordo una simplificacion
+completa para dejar solo las 11 opciones y los seis reportes pedidos, con cuatro
+modulos y proteccion simple de archivos.
+
+**Impacto:**
+- `src/Contabilidad.java`: conserva `main`, el menu de 11 opciones, el submenu
+  de administracion (ver catalogo y crear cuenta), las lecturas validadas, la
+  validacion de montos y fechas, y `salir()`.
+- `src/Datos.java`: concentra las listas paralelas, el catalogo estandar de 75
+  cuentas, las fechas, el formateo, la carga/guardado atomico, la bandera
+  `datosInvalidos` y el respaldo manual.
+- `src/Asientos.java`: concentra el registro de asientos, la partida doble, el
+  calculo de saldos, los movimientos por cuenta y el listado de asientos.
+- `src/Reportes.java`: concentra cuentas T, libro diario, libro mayor, balanza de
+  comprobacion, estado de resultados y balance general.
+- Se eliminaron `Consola.java`, `Cuentas.java`, `Estado.java`, `Fechas.java`,
+  `Formato.java` y `Persistencia.java`. Quedan cuatro modulos `static`, sin
+  objetos de dominio, herencia, polimorfismo ni interfaces.
+- Se elimino la opcion 12 y todo el control de periodos y rangos: reportes
+  filtrados, cierre automatico, marca `|CIERRE`, vista periodo/historico, avance
+  de periodo y bloqueo de fechas fuera del periodo.
+- Se elimino la opcion 1.4 (reconstruir catalogo), la busqueda avanzada de
+  cuentas y asientos, los submenus de cuentas T y movimientos, y el submenu de
+  respaldos.
+- Se eliminaron los respaldos automaticos, la restauracion integrada, la
+  reversion de asientos, la deteccion de cambios externos, el autoajuste de
+  saldos y las advertencias de saldos contrarios.
+- La persistencia conserva el formato de cuatro campos de `cuentas.txt` y
+  `asientos.txt`, y el de cuatro campos de `balance.txt`. La escritura sigue
+  siendo atomica (archivo `.tmp` + movimiento) y la bandera `datosInvalidos`
+  impide guardar si la carga encontro lineas invalidas.
+- Se mantiene un guardian simple de montos ambiguos: `1.800` se rechaza y se
+  pide `1800` o `1800,00`.
+- `data/periodo.txt` y `MANUAL_CIERRE_MANUAL.md` se eliminaron por obsoletos. No
+  se modificaron los datos demo de `cuentas.txt`, `asientos.txt` ni
+  `balance.txt`.
+- `tests/pruebas_fase_d.ps1` se reescribio para el flujo nuevo: menu, catalogo,
+  creacion de cuentas, registro, validaciones, reportes con valores numericos,
+  respaldo manual y archivos invalidos. Todas las pruebas pasan y usan un
+  directorio temporal.
+- `README.md` se reescribio con las 11 opciones, los cuatro modulos, los formatos
+  de archivo y la recuperacion manual de respaldos.
+- `src/` quedo en 847 lineas fisicas (antes 1.374), sin contar `bin/`.
 

@@ -1,236 +1,182 @@
 import java.util.*;
 
 public class Reportes {
-    static boolean saldoContrarioEnReporte = false;
-
-    static void verBalanceComprobacion() {
-        String titulo = Estado.descripcionRango();
-        Consola.linea("\n=== BALANZA DE COMPROBACION ===",
-                titulo,
-                "Cargos (Debitos) y abonos (Creditos) por cuenta.",
-                "Los totales de Debitos y Creditos deben ser iguales.", "");
-        System.out.printf("%-8s %-35s %12s %12s %12s %12s%n", "Codigo", "Nombre", "Debitos", "Creditos", "Deudor", "Acreedor");
-        System.out.println("-".repeat(96));
-        double[][] mov = Asientos.movimientosRango(Fechas.FECHA_MIN, Estado.vistaFin());
-        double[] deb = mov[0], cre = mov[1];
-        double tDeb = 0, tCre = 0, tDeu = 0, tAcr = 0;
-        for (int i = 0; i < Estado.cuentaCodigos.size(); i++) {
-            if (deb[i] <= 0 && cre[i] <= 0) continue;
-            double sal = deb[i] - cre[i];
-            double deu = sal > Estado.TOLERANCIA_SALDO ? sal : 0, acr = sal < -Estado.TOLERANCIA_SALDO ? -sal : 0;
-            System.out.printf("%-8s %-35s %12.2f %12.2f %12.2f %12.2f%n",
-                    Estado.cuentaCodigos.get(i), Estado.cuentaNombres.get(i), deb[i], cre[i], deu, acr);
-            tDeb += deb[i]; tCre += cre[i]; tDeu += deu; tAcr += acr;
-        }
-        System.out.println("-".repeat(96));
-        System.out.printf("%-44s %12.2f %12.2f %12.2f %12.2f%n", "TOTALES:", tDeb, tCre, tDeu, tAcr);
-        System.out.println();
-        if (Asientos.cuadra(tDeb, tCre)) System.out.println("LA BALANZA DE COMPROBACION ESTA CUADRADA.");
-        else { System.out.println("ADVERTENCIA: NO cuadra."); System.out.printf("Diferencia: %.2f%n", tDeb - tCre); }
-    }
-
-    static void verLibroDiario() {
-        Consola.linea("\n=== LIBRO DIARIO ===",
-                Estado.descripcionRango(),
-                "Todas las operaciones en orden de fecha.",
-                "Cada asiento muestra primero el Debe y luego el Haber.",
-                "Formato: Cta | Detalle | Parcial | Debe | Haber");
-        List<Integer> idx = new ArrayList<>();
-        for (int i = 0; i < Estado.asientoFechas.size(); i++)
-            if (Fechas.fechaEnRango(Estado.asientoFechas.get(i), Estado.vistaInicio(), Estado.vistaFin())) idx.add(i);
-        if (idx.isEmpty()) { System.out.println("Sin asientos."); return; }
-        Asientos.ordenarMovimientos(idx, null);
-        System.out.println();
-        System.out.printf("%-10s %-42s %12s %12s %12s%n", "Cta", "Detalle", "Parcial", "Debe", "Haber");
-        System.out.println("=".repeat(92));
-        double tGDeb = 0, tGHab = 0;
-        for (int k = 0; k < idx.size(); k++) {
-            int i = idx.get(k);
-            List<String> cods = Estado.partidaCodigos.get(i), tips = Estado.partidaTipos.get(i);
-            List<Double> mons = Estado.partidaMontos.get(i);
-            tGDeb += Asientos.totalLado(tips, mons, "Debito"); tGHab += Asientos.totalLado(tips, mons, "Credito");
-            System.out.println("Asiento #" + (i + 1) + (Asientos.esCierre(i) ? " (cierre)" : ""));
-            for (int j = 0; j < cods.size(); j++) if (tips.get(j).equalsIgnoreCase("Debito")) mostrarLineaDiario(cods.get(j), mons.get(j), false);
-            for (int j = 0; j < cods.size(); j++) if (tips.get(j).equalsIgnoreCase("Credito")) mostrarLineaDiario(cods.get(j), mons.get(j), true);
-            System.out.printf("%-10s %s%n", Estado.asientoFechas.get(i), Estado.asientoDescripciones.get(i));
-            System.out.println("-".repeat(92));
-        }
-        System.out.println("=".repeat(92));
-        System.out.printf("%-66s %12.2f %12.2f%n", "TOTAL GENERAL", tGDeb, tGHab);
-        System.out.println("Total de asientos: " + idx.size());
-    }
-
-    static void mostrarLineaDiario(String cod, double monto, boolean credito) {
-        String det = Formato.recortar((credito ? "A " : "") + Cuentas.nombreCuenta(cod), 42);
-        String d = credito ? "" : String.format("%12.2f", monto), h = credito ? String.format("%12.2f", monto) : "";
-        System.out.printf("%-10s %-42s %12s %12s %12s%n", cod, det, "", d, h);
-    }
-
-    static void verLibroMayor() {
-        Consola.linea("\n=== LIBRO MAYOR ===",
-                Estado.descripcionRango(),
-                "Movimientos de una cuenta en orden de fecha y su saldo acumulado.",
-                "(As. = numero de asiento)");
-        String cod = Cuentas.pedirCuenta("Cuenta", "cancelar");
-        if (cod == null) { System.out.println("Cancelado."); return; }
-        int idx = Cuentas.indiceCuenta(cod); String tipoCta = Estado.cuentaTipos.get(idx);
-        double salIni = Asientos.saldoDebitoAntes(cod, Estado.vistaInicio());
-        if (!Asientos.tipoDeudor(tipoCta)) salIni = -salIni;
-        System.out.println("\nCUENTA: " + Estado.cuentaCodigos.get(idx) + " - " + Estado.cuentaNombres.get(idx));
-        System.out.println("Tipo: " + tipoCta);
-        List<Integer> aMov = new ArrayList<>(), pMov = new ArrayList<>();
-        Asientos.cargarMovimientosCuenta(cod, aMov, pMov);
-        System.out.printf("Saldo inicial: %.2f (%s)%n", Math.abs(salIni), etiquetaSaldo(salIni, tipoCta));
-        if (aMov.isEmpty() && Math.abs(salIni) <= Estado.TOLERANCIA_SALDO) { System.out.println("Sin movimientos."); return; }
-        System.out.printf("%-5s %-12s %-24s %-8s %12s %12s%n", "As.", "Fecha", "Concepto", "Lado", "Monto", "Saldo");
-        System.out.println("-".repeat(78));
-        double sal = salIni;
-        for (int k = 0; k < aMov.size(); k++) {
-            int i = aMov.get(k), j = pMov.get(k);
-            String tipo = Estado.partidaTipos.get(i).get(j); double monto = Estado.partidaMontos.get(i).get(j);
-            sal += Asientos.efectoSaldo(tipoCta, tipo, monto);
-            System.out.printf("%-5d %-12s %-24s %-8s %12.2f %12.2f%n",
-                    i + 1, Estado.asientoFechas.get(i), Formato.recortar(Estado.asientoDescripciones.get(i), 24), Formato.etiquetaLado(tipo), monto, sal);
-        }
-        System.out.println("-".repeat(78));
-        System.out.printf("Saldo final: %.2f (%s)%n", Math.abs(sal), etiquetaSaldo(sal, tipoCta));
-    }
-
-    static void verCuentaTIndividual() {
-        Consola.linea("\n=== CUENTA T ===",
-                "La cuenta T muestra los movimientos al Debe (izquierda) y al Haber (derecha).",
-                "El saldo es Deudor si el Debe es mayor; Acreedor si el Haber es mayor.");
-        String cod = Cuentas.pedirCuenta("Cuenta", "cancelar");
-        if (cod == null) { System.out.println("Cancelado."); return; }
-        mostrarCuentaT(Cuentas.indiceCuenta(cod));
-    }
-
-    static void verCuentasTConMovimientos() {
-        System.out.println("\n=== CUENTAS T CON MOVIMIENTOS ===");
-        int n = 0;
-        for (int i = 0; i < Estado.cuentaCodigos.size(); i++)
-            if (cuentaTieneMovimientos(i)) { mostrarCuentaT(i); n++; }
-        if (n == 0) System.out.println("Sin movimientos.");
-        else System.out.println("\nTotal: " + n);
-    }
-
-    static boolean cuentaTieneMovimientos(int idx) {
-        List<Integer> a = new ArrayList<>(), p = new ArrayList<>();
-        Asientos.cargarMovimientosCuenta(Estado.cuentaCodigos.get(idx), a, p);
-        return !a.isEmpty();
+    static void verCuentaT() {
+        System.out.println("\n=== CUENTA T ===");
+        String codigo = Datos.pedirCuenta("Cuenta a consultar");
+        if (codigo == null) { System.out.println("Cancelado."); return; }
+        mostrarCuentaT(Datos.indiceCuenta(codigo));
     }
 
     static void mostrarCuentaT(int idxCta) {
-        if (idxCta < 0 || idxCta >= Estado.cuentaCodigos.size()) return;
-        String cod = Estado.cuentaCodigos.get(idxCta), tipoCta = Estado.cuentaTipos.get(idxCta);
-        List<Integer> aMov = new ArrayList<>(), pMov = new ArrayList<>();
-        Asientos.cargarMovimientosCuenta(cod, aMov, pMov);
-        double salIni = Asientos.saldoDebitoAntes(cod, Estado.vistaInicio());
-        double salIniNorm = Asientos.tipoDeudor(tipoCta) ? salIni : -salIni;
-        List<String> fDeb = new ArrayList<>(), fHab = new ArrayList<>();
-        double tDeb = 0, tHab = 0;
-        for (int k = 0; k < aMov.size(); k++) {
-            int i = aMov.get(k), j = pMov.get(k);
-            double monto = Estado.partidaMontos.get(i).get(j);
-            String fila = String.format("%-10s %-22s %12.2f", Estado.asientoFechas.get(i), Formato.recortar(Estado.asientoDescripciones.get(i), 22), monto);
-            if (Estado.partidaTipos.get(i).get(j).equalsIgnoreCase("Debito")) { fDeb.add(fila); tDeb += monto; }
-            else { fHab.add(fila); tHab += monto; }
+        if (idxCta < 0 || idxCta >= Datos.cuentaCodigos.size()) return;
+        String codigo = Datos.cuentaCodigos.get(idxCta), tipo = Datos.cuentaTipos.get(idxCta);
+        List<Integer> asientos = new ArrayList<>(), partidas = new ArrayList<>();
+        Asientos.cargarMovimientosCuenta(codigo, asientos, partidas);
+        List<String> filasDebe = new ArrayList<>(), filasHaber = new ArrayList<>();
+        double totalDebe = 0, totalHaber = 0;
+        for (int k = 0; k < asientos.size(); k++) {
+            int i = asientos.get(k), j = partidas.get(k);
+            double monto = Datos.partidaMontos.get(i).get(j);
+            String fila = String.format("%-10s %-22s %12.2f", Datos.asientoFechas.get(i), Datos.recortar(Datos.asientoDescripciones.get(i), 22), monto);
+            if (Datos.partidaTipos.get(i).get(j).equalsIgnoreCase("Debito")) { filasDebe.add(fila); totalDebe += monto; }
+            else { filasHaber.add(fila); totalHaber += monto; }
         }
         System.out.println("\n" + "=".repeat(95));
-        System.out.printf(" CUENTA T: %s - %s (%s)%n", cod, Estado.cuentaNombres.get(idxCta), tipoCta);
-        System.out.printf(" Vista: %s | Saldo inicial: %.2f (%s)%n", Estado.descripcionRango(), Math.abs(salIni), etiquetaSaldo(salIniNorm, tipoCta));
-        System.out.println(" Izquierda = Debe, derecha = Haber.");
+        System.out.printf(" CUENTA T: %s - %s (%s)%n", codigo, Datos.cuentaNombres.get(idxCta), tipo);
+        System.out.println(" Vista: historico completo. Izquierda = Debe, derecha = Haber.");
         System.out.println("=".repeat(95));
         System.out.printf("%-10s %-22s %12s | %-10s %-22s %12s%n", "Fecha", "Concepto", "Monto", "Fecha", "Concepto", "Monto");
         System.out.println("-".repeat(95));
-        int filas = Math.max(fDeb.size(), fHab.size());
+        int filas = Math.max(filasDebe.size(), filasHaber.size());
         if (filas == 0) System.out.println("Sin movimientos.");
-        else for (int f = 0; f < filas; f++) {
-            String izq = f < fDeb.size() ? fDeb.get(f) : "", der = f < fHab.size() ? fHab.get(f) : "";
-            System.out.printf("%-46s | %-46s%n", izq, der);
-        }
+        else for (int f = 0; f < filas; f++)
+            System.out.printf("%-46s | %-46s%n", f < filasDebe.size() ? filasDebe.get(f) : "", f < filasHaber.size() ? filasHaber.get(f) : "");
         System.out.println("-".repeat(95));
-        System.out.printf("%-10s %-22s %12.2f | %-10s %-22s %12.2f%n", "TOTAL DEBE", "", tDeb, "TOTAL HABER", "", tHab);
-        double sal = salIni + tDeb - tHab;
-        double salNorm = Asientos.tipoDeudor(tipoCta) ? sal : -sal;
-        System.out.printf("%63s SALDO: %.2f (%s)%n", "", Math.abs(sal), etiquetaSaldo(salNorm, tipoCta));
-        if (!Asientos.esCuentaContraria(cod) && salNorm < -Estado.TOLERANCIA_SALDO)
-            System.out.println("  AVISO: saldo en el lado contrario al normal para una cuenta de tipo " + tipoCta + ".");
+        System.out.printf("%-10s %-22s %12.2f | %-10s %-22s %12.2f%n", "TOTAL DEBE", "", totalDebe, "TOTAL HABER", "", totalHaber);
+        double saldo = totalDebe - totalHaber;
+        double saldoNormal = Asientos.tipoDeudor(tipo) ? saldo : -saldo;
+        System.out.printf("%63s SALDO: %.2f (%s)%n", "", Math.abs(saldo), etiquetaSaldo(saldoNormal, tipo));
         System.out.println("=".repeat(95));
     }
 
-    static String etiquetaSaldo(double s, String tipoCta) {
-        if (Math.abs(s) <= Estado.TOLERANCIA_SALDO) return "Cero";
-        return (s > 0) == Asientos.tipoDeudor(tipoCta) ? "Deudor" : "Acreedor";
+    static void verLibroMayor() {
+        System.out.println("\n=== LIBRO MAYOR ===");
+        String codigo = Datos.pedirCuenta("Cuenta a consultar");
+        if (codigo == null) { System.out.println("Cancelado."); return; }
+        int idx = Datos.indiceCuenta(codigo);
+        String tipo = Datos.cuentaTipos.get(idx);
+        List<Integer> asientos = new ArrayList<>(), partidas = new ArrayList<>();
+        Asientos.cargarMovimientosCuenta(codigo, asientos, partidas);
+        System.out.println("\nCUENTA: " + codigo + " - " + Datos.cuentaNombres.get(idx));
+        System.out.println("Tipo: " + tipo);
+        if (asientos.isEmpty()) { System.out.println("Sin movimientos."); return; }
+        System.out.printf("%-5s %-12s %-24s %-8s %12s %12s%n", "As.", "Fecha", "Concepto", "Lado", "Monto", "Saldo");
+        System.out.println("-".repeat(78));
+        double saldo = 0;
+        for (int k = 0; k < asientos.size(); k++) {
+            int i = asientos.get(k), j = partidas.get(k);
+            String lado = Datos.partidaTipos.get(i).get(j);
+            double monto = Datos.partidaMontos.get(i).get(j);
+            saldo += Asientos.efectoSaldo(tipo, lado, monto);
+            System.out.printf("%-5d %-12s %-24s %-8s %12.2f %12.2f%n", i + 1, Datos.asientoFechas.get(i),
+                    Datos.recortar(Datos.asientoDescripciones.get(i), 24), Datos.etiquetaLado(lado), monto, saldo);
+        }
+        System.out.println("-".repeat(78));
+        System.out.printf("Saldo final: %.2f (%s)%n", Math.abs(saldo), etiquetaSaldo(saldo, tipo));
+    }
+
+    static void verLibroDiario() {
+        System.out.println("\n=== LIBRO DIARIO ===");
+        System.out.println("Todas las operaciones en orden de fecha.");
+        List<Integer> indices = new ArrayList<>();
+        for (int i = 0; i < Datos.asientoFechas.size(); i++) indices.add(i);
+        if (indices.isEmpty()) { System.out.println("Sin asientos."); return; }
+        Asientos.ordenarMovimientos(indices, null);
+        System.out.println();
+        System.out.printf("%-10s %-42s %12s %12s %12s%n", "Cta", "Detalle", "Parcial", "Debe", "Haber");
+        System.out.println("=".repeat(92));
+        double totalGeneralDebe = 0, totalGeneralHaber = 0;
+        for (int k = 0; k < indices.size(); k++) {
+            int i = indices.get(k);
+            List<String> codigos = Datos.partidaCodigos.get(i), tipos = Datos.partidaTipos.get(i);
+            List<Double> montos = Datos.partidaMontos.get(i);
+            totalGeneralDebe += Asientos.totalLado(tipos, montos, "Debito");
+            totalGeneralHaber += Asientos.totalLado(tipos, montos, "Credito");
+            System.out.println("Asiento #" + (i + 1));
+            for (int j = 0; j < codigos.size(); j++)
+                if (tipos.get(j).equalsIgnoreCase("Debito")) mostrarLineaDiario(codigos.get(j), montos.get(j), false);
+            for (int j = 0; j < codigos.size(); j++)
+                if (tipos.get(j).equalsIgnoreCase("Credito")) mostrarLineaDiario(codigos.get(j), montos.get(j), true);
+            System.out.printf("%-10s %s%n", Datos.asientoFechas.get(i), Datos.asientoDescripciones.get(i));
+            System.out.println("-".repeat(92));
+        }
+        System.out.println("=".repeat(92));
+        System.out.printf("%-66s %12.2f %12.2f%n", "TOTAL GENERAL", totalGeneralDebe, totalGeneralHaber);
+        System.out.println("Total de asientos: " + indices.size());
+    }
+
+    static void mostrarLineaDiario(String codigo, double monto, boolean credito) {
+        String detalle = Datos.recortar((credito ? "A " : "") + Datos.nombreCuenta(codigo), 42);
+        String debe = credito ? "" : String.format("%12.2f", monto), haber = credito ? String.format("%12.2f", monto) : "";
+        System.out.printf("%-10s %-42s %12s %12s %12s%n", codigo, detalle, "", debe, haber);
+    }
+
+    static void verBalanceComprobacion() {
+        System.out.println("\n=== BALANZA DE COMPROBACION ===");
+        System.out.println("Cargos (Debitos) y abonos (Creditos) por cuenta.");
+        System.out.printf("%-8s %-35s %12s %12s %12s %12s%n", "Codigo", "Nombre", "Debitos", "Creditos", "Deudor", "Acreedor");
+        System.out.println("-".repeat(96));
+        double[][] mov = Asientos.movimientos();
+        double[] debitos = mov[0], creditos = mov[1];
+        double totalDebe = 0, totalHaber = 0, totalDeudor = 0, totalAcreedor = 0;
+        for (int i = 0; i < Datos.cuentaCodigos.size(); i++) {
+            if (debitos[i] <= 0 && creditos[i] <= 0) continue;
+            double saldo = debitos[i] - creditos[i], deudor = saldo > Datos.TOLERANCIA ? saldo : 0, acreedor = saldo < -Datos.TOLERANCIA ? -saldo : 0;
+            System.out.printf("%-8s %-35s %12.2f %12.2f %12.2f %12.2f%n", Datos.cuentaCodigos.get(i), Datos.cuentaNombres.get(i), debitos[i], creditos[i], deudor, acreedor);
+            totalDebe += debitos[i]; totalHaber += creditos[i]; totalDeudor += deudor; totalAcreedor += acreedor;
+        }
+        System.out.println("-".repeat(96));
+        System.out.printf("%-44s %12.2f %12.2f %12.2f %12.2f%n", "TOTALES:", totalDebe, totalHaber, totalDeudor, totalAcreedor);
+        System.out.println();
+        if (Asientos.cuadra(totalDebe, totalHaber)) System.out.println("LA BALANZA DE COMPROBACION ESTA CUADRADA.");
+        else { System.out.println("ADVERTENCIA: NO cuadra."); System.out.printf("Diferencia: %.2f%n", totalDebe - totalHaber); }
     }
 
     static void verEstadoResultados() {
-        Consola.linea("\n=== ESTADO DE RESULTADOS ===",
-                Estado.descripcionRango(),
-                "Ingresos - Costos - Gastos = Utilidad (o perdida).");
+        System.out.println("\n=== ESTADO DE RESULTADOS ===");
+        System.out.println("Ingresos - Costos - Gastos = Utilidad (o perdida).");
         System.out.printf("%-8s %-35s %12s%n", "Codigo", "Nombre", "Saldo");
         System.out.println("-".repeat(60));
-        saldoContrarioEnReporte = false;
-        List<Double> saldos = Asientos.saldosRango(Estado.vistaInicio(), Estado.vistaFin());
-        double tIng = mostrarSeccion("Ingreso", "INGRESOS", saldos);
-        double tCos = mostrarSeccion("Costo", "COSTOS", saldos), tGas = mostrarSeccion("Gasto", "GASTOS", saldos);
-        double uBruta = tIng - tCos, uNeta = uBruta - tGas;
+        List<Double> saldos = Asientos.saldos();
+        double totalIngresos = mostrarSeccion("Ingreso", "INGRESOS", saldos);
+        double totalCostos = mostrarSeccion("Costo", "COSTOS", saldos);
+        double totalGastos = mostrarSeccion("Gasto", "GASTOS", saldos);
+        double utilidadBruta = totalIngresos - totalCostos, utilidadNeta = utilidadBruta - totalGastos;
         System.out.println("\n" + "-".repeat(60));
-        System.out.printf("Utilidad bruta:  %.2f%n", uBruta);
-        System.out.printf("Utilidad neta:   %.2f%n", uNeta);
-        System.out.printf("Resultado:       %.2f (%s)%n", Math.abs(uNeta),
-                Math.abs(uNeta) <= Estado.TOLERANCIA ? "Cero" : uNeta > 0 ? "Utilidad" : "Perdida");
-        mostrarNotaSaldosContrarios();
+        System.out.printf("Utilidad bruta:  %.2f%n", utilidadBruta);
+        System.out.printf("Utilidad neta:   %.2f%n", utilidadNeta);
+        System.out.printf("Resultado:       %.2f (%s)%n", Math.abs(utilidadNeta),
+                Math.abs(utilidadNeta) <= Datos.TOLERANCIA ? "Cero" : utilidadNeta > 0 ? "Utilidad" : "Perdida");
     }
 
     static void generarBalance() {
-        String fin = Estado.vistaFin();
-        Consola.linea("\n=== BALANCE GENERAL ===",
-                Estado.descripcionRango(),
-                "Activo = Pasivo + Patrimonio + Resultado.",
-                Estado.rangoDesde.isEmpty() ? "Generado: " + Fechas.fechaActual() : "Corte: " + fin);
+        System.out.println("\n=== BALANCE GENERAL ===");
+        System.out.println("Activo = Pasivo + Patrimonio + Resultado.");
+        System.out.println("Generado: " + Datos.fechaActual());
         System.out.printf("%-8s %-35s %12s%n", "Codigo", "Nombre", "Saldo");
         System.out.println("-".repeat(60));
-        saldoContrarioEnReporte = false;
-        List<Double> saldos = Asientos.saldosRango(Fechas.FECHA_MIN, fin);
-        double tAct = mostrarSeccion("Activo", "ACTIVO", saldos);
-        double tPas = mostrarSeccion("Pasivo", "PASIVO", saldos), tPat = mostrarSeccion("Patrimonio", "PATRIMONIO", saldos);
-        double resultado = Asientos.resultadoDeSaldos(saldos), patConRes = tPat + resultado;
+        List<Double> saldos = Asientos.saldos();
+        double totalActivo = mostrarSeccion("Activo", "ACTIVO", saldos);
+        double totalPasivo = mostrarSeccion("Pasivo", "PASIVO", saldos);
+        double totalPatrimonio = mostrarSeccion("Patrimonio", "PATRIMONIO", saldos);
+        double resultado = Asientos.resultadoDeSaldos(saldos);
+        double patrimonioConResultado = totalPatrimonio + resultado;
         System.out.println("\n-- RESULTADO --");
-        if (Estado.rangoDesde.isEmpty()) {
-            System.out.printf("%-44s %12.2f%n", "Resultado acumulado:", resultado);
-        } else {
-            double resRango = Asientos.resultadoDeSaldos(Asientos.saldosRango(Estado.vistaInicio(), Estado.vistaFin()));
-            System.out.printf("%-44s %12.2f%n", "Resultado acumulado:", resultado);
-            System.out.printf("%-44s %12.2f%n", "Resultado del rango (" + Estado.rangoDesde + " a " + Estado.rangoHasta + "):", resRango);
-        }
+        System.out.printf("%-44s %12.2f%n", "Resultado acumulado:", resultado);
         System.out.println("\n" + "-".repeat(60));
-        System.out.printf("Total Pasivo + Patrimonio + Resultado: %.2f%n", tPas + patConRes);
-        System.out.printf("Diferencia: %.2f%n", tAct - (tPas + patConRes));
-        if (Asientos.cuadra(tAct, tPas + patConRes)) System.out.println("EL BALANCE CUADRA CORRECTAMENTE.");
-        else { System.out.println("ADVERTENCIA: NO cuadra."); System.out.printf("Diferencia: %.2f%n", tAct - (tPas + patConRes)); }
-        mostrarNotaSaldosContrarios();
-        if (!Persistencia.guardarBalance(Estado.rangoDesde.isEmpty() ? Fechas.fechaActual() : fin, tAct, tPas, patConRes))
-            System.out.println("ADVERTENCIA: no se guardo " + Persistencia.ARCHIVO_BALANCE + ".");
+        System.out.printf("Total Pasivo + Patrimonio + Resultado: %.2f%n", totalPasivo + patrimonioConResultado);
+        System.out.printf("Diferencia: %.2f%n", totalActivo - (totalPasivo + patrimonioConResultado));
+        if (Asientos.cuadra(totalActivo, totalPasivo + patrimonioConResultado)) System.out.println("EL BALANCE CUADRA CORRECTAMENTE.");
+        else { System.out.println("ADVERTENCIA: NO cuadra."); System.out.printf("Diferencia: %.2f%n", totalActivo - (totalPasivo + patrimonioConResultado)); }
+        if (!Datos.guardarBalance(Datos.fechaActual(), totalActivo, totalPasivo, patrimonioConResultado))
+            System.out.println("ADVERTENCIA: no se guardo " + Datos.ARCHIVO_BALANCE + ".");
     }
 
     static double mostrarSeccion(String tipo, String titulo, List<Double> saldos) {
         System.out.println("\n-- " + titulo + " --");
         double total = 0;
-        for (int i = 0; i < Estado.cuentaCodigos.size(); i++) {
-            if (!Estado.cuentaTipos.get(i).equals(tipo)) continue;
-            double s = saldos.get(i);
-            String marca = "";
-            if (!Asientos.esCuentaContraria(Estado.cuentaCodigos.get(i)) && s < -Estado.TOLERANCIA_SALDO) { marca = " *"; saldoContrarioEnReporte = true; }
-            System.out.printf("%-8s %-35s %12.2f%s%n", Estado.cuentaCodigos.get(i), Estado.cuentaNombres.get(i), s, marca);
-            total += s;
+        for (int i = 0; i < Datos.cuentaCodigos.size(); i++) {
+            if (!Datos.cuentaTipos.get(i).equals(tipo)) continue;
+            System.out.printf("%-8s %-35s %12.2f%n", Datos.cuentaCodigos.get(i), Datos.cuentaNombres.get(i), saldos.get(i));
+            total += saldos.get(i);
         }
         System.out.printf("%-44s %12.2f%n", "TOTAL " + titulo + ":", total);
         return total;
     }
 
-    static void mostrarNotaSaldosContrarios() {
-        if (!saldoContrarioEnReporte) return;
-        Consola.linea("\n* Saldo en el lado contrario al normal. Verifique si es cuenta de naturaleza contraria o error.");
+    static String etiquetaSaldo(double saldo, String tipoCuenta) {
+        if (Math.abs(saldo) <= Datos.TOLERANCIA) return "Cero";
+        return (saldo > 0) == Asientos.tipoDeudor(tipoCuenta) ? "Deudor" : "Acreedor";
     }
 }
