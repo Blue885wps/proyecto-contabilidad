@@ -1,0 +1,75 @@
+1000|Caja|Activo
+1100|Bancos|Activo
+1110|Inversiones temporales|Activo
+1200|Cuentas por cobrar|Activo
+1210|Clientes|Activo
+1220|Documentos por cobrar|Activo
+1230|Deudores diversos|Activo
+1300|Inventarios|Activo
+1310|Materias primas|Activo
+1320|Productos terminados|Activo
+1400|Activos fijos|Activo
+1410|Mobiliario y equipo|Activo
+1420|Equipo de transporte|Activo
+1430|Equipo de computo|Activo
+1500|Activos diferidos|Activo
+1510|Gastos pagados por anticipado|Activo
+1520|Seguros pagados por anticipado|Activo
+1600|Cuentas por cobrar a largo plazo|Activo
+1700|Propiedad, planta y equipo|Activo
+1790|Depreciacion acumulada|Activo
+1800|Activos intangibles|Activo
+1890|Amortizacion acumulada|Activo
+2000|Cuentas por pagar|Pasivo
+2010|Proveedores|Pasivo
+2020|Acreedores diversos|Pasivo
+2100|Prestamos bancarios|Pasivo
+2110|Prestamos a corto plazo|Pasivo
+2120|Prestamos a largo plazo|Pasivo
+2200|Impuestos por pagar|Pasivo
+2210|IVA por pagar|Pasivo
+2220|ISR por pagar|Pasivo
+2300|Pasivos diferidos|Pasivo
+2310|Anticipos de clientes|Pasivo
+2320|Intereses cobrados por anticipado|Pasivo
+2400|Pasivos por impuestos diferidos|Pasivo
+2500|Obligaciones financieras a largo plazo|Pasivo
+2600|Pasivos por beneficios a empleados|Pasivo
+3000|Capital social|Patrimonio
+3010|Capital aportado|Patrimonio
+3020|Capital ganado|Patrimonio
+3100|Utilidades retenidas|Patrimonio
+3110|Utilidad del ejercicio|Patrimonio
+3120|Perdida del ejercicio|Patrimonio
+3200|Resultados de ejercicios anteriores|Patrimonio
+3300|Reservas legales|Patrimonio
+3400|Ajustes por revaluacion|Patrimonio
+3500|Dividendos decretados|Patrimonio
+4000|Ingresos|Ingreso
+4010|Ventas|Ingreso
+4020|Ingresos por servicios|Ingreso
+4030|Ingresos por intereses|Ingreso
+4040|Otros ingresos|Ingreso
+4050|Ingresos por alquileres|Ingreso
+4060|Ingresos por comisiones|Ingreso
+4070|Ingresos por dividendos|Ingreso
+5000|Costos|Costo
+5010|Costo de ventas|Costo
+5020|Costo de produccion|Costo
+5030|Costo de lo vendido|Costo
+6000|Gastos|Gasto
+6010|Gastos de venta|Gasto
+6020|Gastos de administracion|Gasto
+6030|Gastos financieros|Gasto
+6040|Gastos de operacion|Gasto
+6050|Sueldos y salarios|Gasto
+6060|Renta|Gasto
+6070|Servicios publicos|Gasto
+6080|Depreciacion|Gasto
+6090|Amortizacion|Gasto
+6100|Gastos de publicidad y mercadeo|Gasto
+6110|Gastos de mantenimiento|Gasto
+6120|Gastos de seguros|Gasto
+6130|Gastos de impuestos|Gasto
+6140|Gastos de capacitacion|Gasto
+6150|Gastos de viajes y representacion|Gasto
