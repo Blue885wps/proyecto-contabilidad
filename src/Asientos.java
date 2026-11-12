@@ -260,4 +260,21 @@ public class Asientos {
         for (int j = 0; j < codigos.size(); j++)
             System.out.printf("  %-6s %-30s %-9s %12.2f%n", codigos.get(j), Datos.nombreCuenta(codigos.get(j)), Datos.etiquetaLado(tipos.get(j)), montos.get(j));
     }
+
+    static String validarSaldoContrarioEnCarga(List<String> codigos, List<String> tipos, List<Double> montos,
+                                               double[] saldosCarga, List<String> cuentaNaturalezas, List<String> cuentaNombres) {
+        for (int i = 0; i < codigos.size(); i++) {
+            int idx = Datos.indiceCuenta(codigos.get(i));
+            String naturaleza = cuentaNaturalezas.get(idx);
+            double efecto = efectoSaldoNaturaleza(idx, tipos.get(i), montos.get(i));
+            double resultante = saldosCarga[idx] + efecto;
+            if (!naturaleza.equals("Mixta") && resultante < -Datos.TOLERANCIA) {
+                return "saldo contrario en " + codigos.get(i) + " " + cuentaNombres.get(idx)
+                        + ": saldo actual " + String.format("%.2f", saldosCarga[idx])
+                        + ", monto " + String.format("%.2f", montos.get(i))
+                        + ", resultante " + String.format("%.2f", resultante);
+            }
+        }
+        return null;
+    }
 }

@@ -43,6 +43,7 @@ function New-TestDir {
     New-Item -ItemType Directory -Path (Join-Path $dir "backup") -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $dir "bin") -Force | Out-Null
     Copy-Item (Join-Path $temp "bin\*.class") (Join-Path $dir "bin\") -Force
+    Copy-Item (Join-Path $root "data\catalogo_estandar.txt") (Join-Path $dir "data\") -Force
     return $dir
 }
 

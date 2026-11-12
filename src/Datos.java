@@ -12,6 +12,7 @@ public class Datos {
     static final double TOLERANCIA = 0.005, EPSILON = 1e-9;
     static final int ANIO_MIN = 1900, ANIO_MAX = 2100;
     static final String ARCHIVO_CUENTAS = "data/cuentas.txt", ARCHIVO_ASIENTOS = "data/asientos.txt", ARCHIVO_BALANCE = "data/balance.txt";
+    static final String ARCHIVO_CATALOGO = "data/catalogo_estandar.txt";
     static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     static final DateTimeFormatter FORMATO_FECHA_ESTRICTA = DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT);
     static final DateTimeFormatter FORMATO_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS");
@@ -26,16 +27,6 @@ public class Datos {
     static List<List<String>> partidaCodigos = new ArrayList<>(), partidaTipos = new ArrayList<>();
     static List<List<Double>> partidaMontos = new ArrayList<>();
     static double[] saldosCarga = new double[0];
-
-    // Catalogo estandar de 75 cuentas: codigo|nombre|tipo, separadas por ;
-    static final String[] CATALOGO_ESTANDAR = {
-        "1000|Caja|Activo;1100|Bancos|Activo;1110|Inversiones temporales|Activo;1200|Cuentas por cobrar|Activo;1210|Clientes|Activo;1220|Documentos por cobrar|Activo;1230|Deudores diversos|Activo;1300|Inventarios|Activo;1310|Materias primas|Activo;1320|Productos terminados|Activo;1400|Activos fijos|Activo;1410|Mobiliario y equipo|Activo;1420|Equipo de transporte|Activo;1430|Equipo de computo|Activo;1500|Activos diferidos|Activo;1510|Gastos pagados por anticipado|Activo;1520|Seguros pagados por anticipado|Activo;1600|Cuentas por cobrar a largo plazo|Activo;1700|Propiedad, planta y equipo|Activo;1790|Depreciacion acumulada|Activo;1800|Activos intangibles|Activo;1890|Amortizacion acumulada|Activo",
-        "2000|Cuentas por pagar|Pasivo;2010|Proveedores|Pasivo;2020|Acreedores diversos|Pasivo;2100|Prestamos bancarios|Pasivo;2110|Prestamos a corto plazo|Pasivo;2120|Prestamos a largo plazo|Pasivo;2200|Impuestos por pagar|Pasivo;2210|IVA por pagar|Pasivo;2220|ISR por pagar|Pasivo;2300|Pasivos diferidos|Pasivo;2310|Anticipos de clientes|Pasivo;2320|Intereses cobrados por anticipado|Pasivo;2400|Pasivos por impuestos diferidos|Pasivo;2500|Obligaciones financieras a largo plazo|Pasivo;2600|Pasivos por beneficios a empleados|Pasivo",
-        "3000|Capital social|Patrimonio;3010|Capital aportado|Patrimonio;3020|Capital ganado|Patrimonio;3100|Utilidades retenidas|Patrimonio;3110|Utilidad del ejercicio|Patrimonio;3120|Perdida del ejercicio|Patrimonio;3200|Resultados de ejercicios anteriores|Patrimonio;3300|Reservas legales|Patrimonio;3400|Ajustes por revaluacion|Patrimonio;3500|Dividendos decretados|Patrimonio",
-        "4000|Ingresos|Ingreso;4010|Ventas|Ingreso;4020|Ingresos por servicios|Ingreso;4030|Ingresos por intereses|Ingreso;4040|Otros ingresos|Ingreso;4050|Ingresos por alquileres|Ingreso;4060|Ingresos por comisiones|Ingreso;4070|Ingresos por dividendos|Ingreso",
-        "5000|Costos|Costo;5010|Costo de ventas|Costo;5020|Costo de produccion|Costo;5030|Costo de lo vendido|Costo",
-        "6000|Gastos|Gasto;6010|Gastos de venta|Gasto;6020|Gastos de administracion|Gasto;6030|Gastos financieros|Gasto;6040|Gastos de operacion|Gasto;6050|Sueldos y salarios|Gasto;6060|Renta|Gasto;6070|Servicios publicos|Gasto;6080|Depreciacion|Gasto;6090|Amortizacion|Gasto;6100|Gastos de publicidad y mercadeo|Gasto;6110|Gastos de mantenimiento|Gasto;6120|Gastos de seguros|Gasto;6130|Gastos de impuestos|Gasto;6140|Gastos de capacitacion|Gasto;6150|Gastos de viajes y representacion|Gasto"
-    };
 
     // FECHAS, MONTOS Y TEXTO
     static String fechaActual() { return LocalDate.now().format(FORMATO_FECHA); }
@@ -60,32 +51,34 @@ public class Datos {
         String s = texto.trim();
         if (s.isEmpty()) return null;
         if (s.matches("\\d+[.,]\\d{3}")) return null;
-        boolean valido = s.matches("\\d+")
-                || s.matches("\\d+[.,]\\d{1,2}")
-                || s.matches("[1-9]\\d{0,2}(?:\\.\\d{3})+(?:,\\d{1,2})?")
-                || s.matches("[1-9]\\d{0,2}(?:,\\d{3})+(?:\\.\\d{1,2})?");
-        if (!valido) return null;
-        String normalizado = s;
-        if (s.indexOf('.') >= 0 && s.indexOf(',') >= 0) {
-            if (s.lastIndexOf('.') > s.lastIndexOf(',')) normalizado = s.replace(",", "");
-            else normalizado = s.replace(".", "").replace(',', '.');
-        } else if (s.indexOf('.') >= 0) {
+        if (s.matches(".*[eE][+-]?\\d+")) return null;
+        boolean tienePunto = s.indexOf('.') >= 0;
+        boolean tieneComa = s.indexOf(',') >= 0;
+        String normalizado;
+        if (tienePunto && tieneComa) {
+            if (s.lastIndexOf('.') > s.lastIndexOf(',')) {
+                normalizado = s.replace(",", "");
+            } else {
+                normalizado = s.replace(".", "").replace(',', '.');
+            }
+        } else if (tienePunto) {
             if (contarCaracter(s, '.') > 1) normalizado = s.replace(".", "");
-        } else if (s.indexOf(',') >= 0) {
+            else normalizado = s;
+        } else if (tieneComa) {
             if (contarCaracter(s, ',') > 1) normalizado = s.replace(",", "");
             else normalizado = s.replace(',', '.');
+        } else {
+            normalizado = s;
+        }
+        if (normalizado.indexOf('.') >= 0) {
+            String[] partes = normalizado.split("\\.", 2);
+            if (partes[1].length() > 2) return null;
         }
         try {
             double valor = Double.parseDouble(normalizado);
             if (!Double.isFinite(valor) || valor < 0.01) return null;
             return valor;
         } catch (NumberFormatException e) { return null; }
-    }
-
-    static int contarCaracter(String texto, char caracter) {
-        int total = 0;
-        for (int i = 0; i < texto.length(); i++) if (texto.charAt(i) == caracter) total++;
-        return total;
     }
 
     static String formatearMonto(double valor) {
@@ -102,15 +95,21 @@ public class Datos {
                 .replaceAll("\\s+", " ");
     }
 
-    static String limpiarCampo(String valor) { return valor == null ? "" : valor.replace("\r", " ").replace("\n", " "); }
+    static int contarCaracter(String texto, char caracter) {
+        int total = 0;
+        for (int i = 0; i < texto.length(); i++) if (texto.charAt(i) == caracter) total++;
+        return total;
+    }
+
     static String recortar(String texto, int ancho) { return texto == null ? "" : (texto.length() <= ancho ? texto : texto.substring(0, ancho)); }
-    static String etiquetaLado(String tipo) { return tipo.equalsIgnoreCase("Debito") ? "Debe" : "Haber"; }
+    static String etiquetaLado(String tipo) { return tipo.startsWith("D") ? "Debe" : "Haber"; }
 
     // CUENTAS
     static void inicializarCuentas() {
         cuentaCodigos.clear(); cuentaNombres.clear(); cuentaTipos.clear(); cuentaNaturalezas.clear(); cuentaSaldos.clear();
-        for (String grupo : CATALOGO_ESTANDAR) for (String linea : grupo.split(";")) {
-            String[] p = linea.split("\\|");
+        List<String[]> lineas = cargarArchivo(ARCHIVO_CATALOGO, 3, "catalogo_estandar.txt");
+        if (lineas.isEmpty()) return;
+        for (String[] p : lineas) {
             agregarCuenta(p[0], p[1], p[2], naturalezaEstandar(p[0], p[2]));
         }
     }
@@ -292,18 +291,54 @@ public class Datos {
         return NATURALEZAS[opcion - 1];
     }
 
-    // PERSISTENCIA
+    // PERSISTENCIA - Helpers genéricos
+    static List<String[]> cargarArchivo(String ruta, int camposEsperados, String nombreArchivo) {
+        List<String[]> resultado = new ArrayList<>();
+        File archivo = new File(ruta);
+        if (!archivo.exists()) return resultado;
+        try (BufferedReader reader = new BufferedReader(new FileReader(archivo))) {
+            String linea; int numero = 0;
+            while ((linea = reader.readLine()) != null) {
+                numero++;
+                if (linea.startsWith("\uFEFF")) linea = linea.substring(1);
+                if (linea.trim().isEmpty()) continue;
+                String[] p = linea.split("\\|", -1);
+                if (camposEsperados > 0 && p.length != camposEsperados) {
+                    System.out.println("ADVERTENCIA " + nombreArchivo + " linea " + numero + ": se esperaban " + camposEsperados + " campos. Linea omitida.");
+                    datosInvalidos = true;
+                    continue;
+                }
+                for (int i = 0; i < p.length; i++) p[i] = p[i].trim();
+                resultado.add(p);
+            }
+        } catch (IOException e) {
+            System.out.println("Error leyendo " + nombreArchivo + ": " + e.getMessage());
+            datosInvalidos = true;
+        }
+        return resultado;
+    }
+
+    static String[] migrarSiViejo(String[] p, String codigo, String tipo) {
+        if (p.length == 5) return p;
+        String[] nuevo = new String[5];
+        nuevo[0] = p[0]; nuevo[1] = p[1]; nuevo[2] = p[2];
+        nuevo[3] = naturalezaEstandar(codigo, tipo);
+        nuevo[4] = p[3];
+        return nuevo;
+    }
+
     static void cargarDatos() {
         new File("data").mkdirs();
-        if (!cargarCuentasTexto()) {
-            System.out.println("Inicializando catalogo de cuentas...");
-            inicializarCuentas();
-            if (!datosInvalidos) guardarCuentas();
-        } else if (cuentaCodigos.isEmpty()) {
+        boolean catalogoVacio = !cargarCuentasTexto();
+        if (catalogoVacio && new File(ARCHIVO_CUENTAS).exists()) {
             System.out.println("ADVERTENCIA: no hay cuentas validas en " + ARCHIVO_CUENTAS + ".");
             System.out.println("Se usara el catalogo estandar en memoria; no se guardara hasta corregir el archivo.");
             inicializarCuentas();
             datosInvalidos = true;
+        } else if (catalogoVacio) {
+            System.out.println("Inicializando catalogo de cuentas...");
+            inicializarCuentas();
+            if (!datosInvalidos) guardarCuentas();
         }
         cargarAsientosTexto();
         Asientos.recalcularSaldos();
@@ -313,46 +348,42 @@ public class Datos {
         cuentaCodigos.clear(); cuentaNombres.clear(); cuentaTipos.clear(); cuentaNaturalezas.clear(); cuentaSaldos.clear();
         File archivo = new File(ARCHIVO_CUENTAS);
         if (!archivo.exists()) return false;
-        try (BufferedReader reader = new BufferedReader(new FileReader(archivo))) {
-            String linea; int numero = 0;
-            while ((linea = reader.readLine()) != null) {
-                numero++;
-                if (linea.startsWith("\uFEFF")) linea = linea.substring(1);
-                if (linea.trim().isEmpty()) continue;
-                String[] p = linea.split("\\|", -1);
-                if (p.length != 4 && p.length != 5) { advertirCuenta(numero, "se esperaban 4 o 5 campos"); continue; }
-                String codigo = p[0].trim(), nombre = p[1].trim(), tipo = p[2].trim();
-                if (codigo.isEmpty() || nombre.isEmpty()) { advertirCuenta(numero, "codigo o nombre vacio"); continue; }
-                if (!tipoValido(tipo)) { advertirCuenta(numero, "tipo de cuenta invalido"); continue; }
-                String naturaleza;
-                String saldoTexto;
-                if (p.length == 5) {
-                    naturaleza = normalizarNaturaleza(p[3].trim());
-                    saldoTexto = p[4].trim();
-                } else {
-                    naturaleza = naturalezaEstandar(codigo, tipo);
-                    saldoTexto = p[3].trim();
-                }
-                if (naturaleza == null) { advertirCuenta(numero, "naturaleza invalida (use Deudora, Acreedora o Mixta)"); continue; }
-                double saldo;
-                try {
-                    saldo = Double.parseDouble(saldoTexto);
-                    if (!Double.isFinite(saldo)) throw new NumberFormatException();
-                } catch (NumberFormatException e) { advertirCuenta(numero, "saldo invalido"); continue; }
-                if (indiceCuenta(codigo) >= 0) { advertirCuenta(numero, "codigo duplicado " + codigo); continue; }
-                agregarCuenta(codigo, nombre, tipo, naturaleza);
-                cuentaSaldos.set(cuentaSaldos.size() - 1, saldo);
+        List<String[]> lineas = cargarArchivo(ARCHIVO_CUENTAS, -1, "cuentas.txt");
+        int validos = 0;
+        for (String[] p : lineas) {
+            if (p.length != 4 && p.length != 5) { continue; }
+            String codigo = p[0], nombre = p[1], tipo = p[2];
+            if (codigo.isEmpty() || nombre.isEmpty()) { continue; }
+            if (!tipoValido(tipo)) { continue; }
+            String naturaleza;
+            String saldoTexto;
+            if (p.length == 5) {
+                naturaleza = normalizarNaturaleza(p[3]);
+                saldoTexto = p[4];
+            } else {
+                naturaleza = naturalezaEstandar(codigo, tipo);
+                saldoTexto = p[3];
             }
-        } catch (IOException e) {
-            System.out.println("Error leyendo " + ARCHIVO_CUENTAS + ": " + e.getMessage());
-            datosInvalidos = true;
+            String nat = normalizarNaturaleza(naturaleza);
+            if (nat == null) {
+                System.out.println("ADVERTENCIA " + ARCHIVO_CUENTAS + ": naturaleza invalida (" + naturaleza + ") en cuenta " + codigo + ". Linea omitida.");
+                datosInvalidos = true;
+                continue;
+            }
+            double saldo;
+            try {
+                saldo = Double.parseDouble(saldoTexto);
+                if (!Double.isFinite(saldo)) continue;
+            } catch (NumberFormatException e) { continue; }
+            if (indiceCuenta(codigo) >= 0) { continue; }
+            agregarCuenta(codigo, nombre, tipo, nat);
+            cuentaSaldos.set(cuentaSaldos.size() - 1, saldo);
+            validos++;
         }
-        return true;
-    }
-
-    static void advertirCuenta(int numero, String mensaje) {
-        System.out.println("ADVERTENCIA " + ARCHIVO_CUENTAS + " linea " + numero + ": " + mensaje + ". Linea omitida.");
-        datosInvalidos = true;
+        if (validos == 0 && lineas.isEmpty()) {
+            System.out.println("ADVERTENCIA: no hay cuentas validas en " + ARCHIVO_CUENTAS + ".");
+        }
+        return validos > 0;
     }
 
     static void cargarAsientosTexto() {
@@ -409,7 +440,7 @@ public class Datos {
             else { error = "tipo de partida invalido"; break; }
             if (indiceCuenta(codigo) < 0) { error = "la cuenta " + codigo + " no existe"; break; }
             Double monto = parsearMonto(p[3].trim());
-            if (monto == null) { error = "monto invalido (use hasta 2 decimales y minimo 0.01)"; break; }
+            if (monto == null) { error = "monto invalido (minimo 0.01)"; break; }
             codigos.add(codigo); tipos.add(tipo); montos.add(monto);
         }
         if (error == null && codigos.size() < 2) error = "minimo 2 partidas";
@@ -419,19 +450,8 @@ public class Datos {
             else if (!Asientos.cuadra(debe, haber)) error = "no cuadra: Debe " + formatearMonto(debe) + ", Haber " + formatearMonto(haber);
         }
         if (error == null) {
-            for (int i = 0; i < codigos.size(); i++) {
-                int idx = indiceCuenta(codigos.get(i));
-                String naturaleza = cuentaNaturalezas.get(idx);
-                double efecto = Asientos.efectoSaldoNaturaleza(idx, tipos.get(i), montos.get(i));
-                double resultante = saldosCarga[idx] + efecto;
-                if (!naturaleza.equals("Mixta") && resultante < -TOLERANCIA) {
-                    error = "saldo contrario en " + codigos.get(i) + " " + cuentaNombres.get(idx)
-                            + ": saldo actual " + String.format("%.2f", saldosCarga[idx])
-                            + ", monto " + String.format("%.2f", montos.get(i))
-                            + ", resultante " + String.format("%.2f", resultante);
-                    break;
-                }
-            }
+            String err = Asientos.validarSaldoContrarioEnCarga(codigos, tipos, montos, saldosCarga, cuentaNaturalezas, cuentaNombres);
+            if (err != null) error = err;
         }
         if (error != null) {
             System.out.println("ADVERTENCIA " + ARCHIVO_ASIENTOS + " linea " + numero + ": " + error + ". Asiento omitido.");
@@ -452,8 +472,8 @@ public class Datos {
     static boolean guardarCuentas() {
         StringBuilder contenido = new StringBuilder();
         for (int i = 0; i < cuentaCodigos.size(); i++)
-            contenido.append(limpiarCampo(cuentaCodigos.get(i))).append('|').append(limpiarCampo(cuentaNombres.get(i))).append('|')
-                    .append(limpiarCampo(cuentaTipos.get(i))).append('|').append(limpiarCampo(cuentaNaturalezas.get(i))).append('|')
+            contenido.append(cuentaCodigos.get(i)).append('|').append(cuentaNombres.get(i)).append('|')
+                    .append(cuentaTipos.get(i)).append('|').append(cuentaNaturalezas.get(i)).append('|')
                     .append(formatearMonto(cuentaSaldos.get(i))).append(System.lineSeparator());
         return escribirArchivoAtomico(ARCHIVO_CUENTAS, contenido.toString());
     }
@@ -461,12 +481,12 @@ public class Datos {
     static boolean guardarAsientos() {
         StringBuilder contenido = new StringBuilder();
         for (int i = 0; i < asientoFechas.size(); i++) {
-            contenido.append("ASIENTO|").append(limpiarCampo(asientoFechas.get(i))).append('|')
-                    .append(limpiarCampo(asientoDescripciones.get(i))).append('|').append(formatearMonto(asientoTotales.get(i))).append(System.lineSeparator());
+            contenido.append("ASIENTO|").append(asientoFechas.get(i)).append('|')
+                    .append(asientoDescripciones.get(i)).append('|').append(formatearMonto(asientoTotales.get(i))).append(System.lineSeparator());
             List<String> codigos = partidaCodigos.get(i), tipos = partidaTipos.get(i);
             List<Double> montos = partidaMontos.get(i);
             for (int j = 0; j < codigos.size(); j++)
-                contenido.append("PARTIDA|").append(limpiarCampo(codigos.get(j))).append('|').append(limpiarCampo(tipos.get(j))).append('|')
+                contenido.append("PARTIDA|").append(codigos.get(j)).append('|').append(tipos.get(j)).append('|')
                         .append(formatearMonto(montos.get(j))).append(System.lineSeparator());
         }
         return escribirArchivoAtomico(ARCHIVO_ASIENTOS, contenido.toString());
